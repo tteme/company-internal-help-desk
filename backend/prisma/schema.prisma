@@ -1,0 +1,794 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  EMPLOYEE
+  DEPARTMENT_OFFICER
+  DEPARTMENT_HEAD
+  ADMIN
+  SYSTEM_ADMINISTRATOR
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum OfficerAvailability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum RequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RequestStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  PENDING_EMPLOYEE
+  PENDING_INFORMATION
+  ESCALATED
+  RESOLVED
+  REOPENED
+  REJECTED
+  CLOSED
+}
+
+enum RequestChannel {
+  WEB
+  EMAIL
+  SYSTEM
+}
+
+enum AssignmentType {
+  AUTOMATIC
+  MANUAL
+  ESCALATION
+  REASSIGNMENT
+}
+
+enum EscalationReason {
+  SLA_BREACH
+  OFFICER_ESCALATION
+  COMPLEXITY
+  MANAGEMENT_REQUEST
+}
+
+enum EscalationStatus {
+  PENDING
+  ACCEPTED
+  RESOLVED
+  REJECTED
+}
+
+enum HistoryAction {
+  CREATED
+  ASSIGNED
+  REASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  COMMENTED
+  ESCALATED
+  RESOLVED
+  REOPENED
+  CLOSED
+  REJECTED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+}
+
+enum NotificationType {
+  REQUEST_CREATED
+  REQUEST_ASSIGNED
+  REQUEST_REASSIGNED
+  REQUEST_COMMENT
+  REQUEST_ESCALATED
+  SLA_WARNING
+  SLA_BREACHED
+  REQUEST_RESOLVED
+  REQUEST_CLOSED
+  ACCOUNT_CREATED
+  ACCOUNT_ACTIVATED
+  SYSTEM_NOTIFICATION
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BusinessDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// ============================================================
+// BRANCH
+// ============================================================
+
+model Branch {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  code     String  @unique
+  address  String?
+  phone    String?
+  email    String?
+  isActive Boolean @default(true)
+
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// ============================================================
+// DEPARTMENT
+// ============================================================
+
+model Department {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  code        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  users           User[]
+  categories      Category[]
+  routingRules    RoutingRule[]
+  slaPolicies     SlaPolicy[]
+  escalationRules EscalationRule[]
+  requests        Request[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// ============================================================
+// USER
+// ============================================================
+
+model User {
+  id String @id @default(uuid())
+
+  employeeId String  @unique
+  firstName  String
+  lastName   String
+  email      String  @unique
+  phone      String?
+
+  passwordHash String?
+
+  role         UserRole            @default(EMPLOYEE)
+  status       UserStatus          @default(PENDING)
+  availability OfficerAvailability @default(AVAILABLE)
+
+  branchId     String?
+  departmentId String?
+
+  emailVerified Boolean @default(false)
+  isActive      Boolean @default(false)
+
+  activationToken   String?   @unique
+  activationExpires DateTime?
+
+  lastLoginAt DateTime?
+
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  userRoles UserRoleAssignment[]
+
+  createdRequests Request[] @relation("RequestCreator")
+
+  assignedRequests Request[] @relation("RequestAssignee")
+
+  assignmentsReceived RequestAssignment[] @relation("AssignedTo")
+  assignmentsMade     RequestAssignment[] @relation("AssignedBy")
+
+  comments RequestComment[]
+
+  attachments RequestAttachment[]
+
+  escalationsFrom RequestEscalation[] @relation("EscalatedFrom")
+
+  escalationsTo RequestEscalation[] @relation("EscalatedTo")
+
+  histories RequestHistory[]
+
+  notifications Notification[]
+
+  authoredArticles KnowledgeArticle[] @relation("ArticleAuthor")
+
+  articleViews KnowledgeArticleView[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([status])
+  @@index([availability])
+  @@index([branchId])
+  @@index([departmentId])
+}
+
+// ============================================================
+// ROLE
+// ============================================================
+
+model Role {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+
+  permissions     UserRoleAssignment[]
+  rolePermissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// PERMISSION
+// ============================================================
+
+model Permission {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+
+  rolePermissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// USER ROLE ASSIGNMENT
+// ============================================================
+
+model UserRoleAssignment {
+  id String @id @default(uuid())
+
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+// ============================================================
+// ROLE PERMISSION
+// ============================================================
+
+model RolePermission {
+  id String @id @default(uuid())
+
+  roleId       String
+  permissionId String
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+// ============================================================
+// CATEGORY
+// ============================================================
+
+model Category {
+  id String @id @default(uuid())
+
+  name        String
+  code        String  @unique
+  description String?
+
+  departmentId String
+
+  isActive Boolean @default(true)
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  requests     Request[]
+  routingRules RoutingRule[]
+  articles     KnowledgeArticle[]
+  keywords     CategoryKeyword[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+  @@index([isActive])
+}
+
+// ============================================================
+// ROUTING RULE
+// ============================================================
+
+model RoutingRule {
+  id String @id @default(uuid())
+
+  categoryId   String
+  departmentId String
+
+  priority Int     @default(1)
+  isActive Boolean @default(true)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([isActive])
+}
+
+// ============================================================
+// BUSINESS HOURS
+// ============================================================
+
+model BusinessHours {
+  id String @id @default(uuid())
+
+  day       BusinessDay @unique
+  startTime String
+  endTime   String
+  isWorking Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// SLA POLICY
+// ============================================================
+
+model SlaPolicy {
+  id String @id @default(uuid())
+
+  name        String
+  description String?
+
+  departmentId String
+  priority     RequestPriority
+
+  responseTimeMinutes   Int
+  resolutionTimeMinutes Int
+
+  warningPercentage Int @default(80)
+
+  isActive Boolean @default(true)
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  requestSlas RequestSla[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([departmentId, priority])
+  @@index([departmentId])
+  @@index([isActive])
+}
+
+// ============================================================
+// ESCALATION RULE
+// ============================================================
+
+model EscalationRule {
+  id String @id @default(uuid())
+
+  name        String
+  description String?
+
+  departmentId String?
+
+  triggerAfterMinutes Int
+  escalateToHead      Boolean @default(true)
+
+  isActive Boolean @default(true)
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([isActive])
+}
+
+// ============================================================
+// REQUEST
+// ============================================================
+
+model Request {
+  id String @id @default(uuid())
+
+  ticketNumber String @unique
+
+  title       String
+  description String
+
+  priority RequestPriority @default(MEDIUM)
+  status   RequestStatus   @default(OPEN)
+  channel  RequestChannel  @default(WEB)
+
+  creatorId    String
+  assigneeId   String?
+  departmentId String
+  categoryId   String
+
+  assignedAt      DateTime?
+  firstViewedAt   DateTime?
+  firstResponseAt DateTime?
+
+  submittedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+
+  creator User @relation("RequestCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+
+  assignee User? @relation("RequestAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  assignments RequestAssignment[]
+
+  comments RequestComment[]
+
+  attachments RequestAttachment[]
+
+  sla RequestSla?
+
+  escalations RequestEscalation[]
+
+  histories RequestHistory[]
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorId])
+  @@index([assigneeId])
+  @@index([departmentId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([priority])
+  @@index([submittedAt])
+}
+
+// ============================================================
+// REQUEST ASSIGNMENT
+// ============================================================
+
+model RequestAssignment {
+  id String @id @default(uuid())
+
+  requestId    String
+  assignedTo   String
+  assignedById String?
+
+  assignmentType AssignmentType
+
+  assignedAt    DateTime  @default(now())
+  firstViewedAt DateTime?
+  unassignedAt DateTime?
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  assignee User @relation("AssignedTo", fields: [assignedTo], references: [id], onDelete: Restrict)
+
+  assigner User? @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([assignedTo])
+  @@index([assignedById])
+}
+
+// ============================================================
+// REQUEST COMMENT
+// ============================================================
+
+model RequestComment {
+  id String @id @default(uuid())
+
+  requestId String
+  authorId  String
+
+  message String
+
+  isInternal Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId])
+  @@index([authorId])
+}
+
+// ============================================================
+// REQUEST ATTACHMENT
+// ============================================================
+
+model RequestAttachment {
+  id String @id @default(uuid())
+
+  requestId    String
+  uploadedById String
+
+  fileName String
+  filePath String
+  mimeType String
+  fileSize Int
+
+  createdAt DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  uploader User @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([requestId])
+  @@index([uploadedById])
+}
+
+// ============================================================
+// REQUEST SLA
+// ============================================================
+
+model RequestSla {
+  id String @id @default(uuid())
+
+  requestId   String @unique
+  slaPolicyId String
+
+  responseDueAt   DateTime
+  resolutionDueAt DateTime
+
+  responseBreached   Boolean @default(false)
+  resolutionBreached Boolean @default(false)
+
+  responseBreachedAt   DateTime?
+  resolutionBreachedAt DateTime?
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  slaPolicy SlaPolicy @relation(fields: [slaPolicyId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slaPolicyId])
+  @@index([responseDueAt])
+  @@index([resolutionDueAt])
+}
+
+// ============================================================
+// REQUEST ESCALATION
+// ============================================================
+
+model RequestEscalation {
+  id String @id @default(uuid())
+
+  requestId String
+
+  escalatedFromId String?
+  escalatedToId   String?
+
+  reason EscalationReason
+  status EscalationStatus @default(PENDING)
+
+  description String?
+
+  escalatedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  fromUser User? @relation("EscalatedFrom", fields: [escalatedFromId], references: [id], onDelete: SetNull)
+
+  toUser User? @relation("EscalatedTo", fields: [escalatedToId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([escalatedFromId])
+  @@index([escalatedToId])
+  @@index([status])
+}
+
+// ============================================================
+// REQUEST HISTORY
+// ============================================================
+
+model RequestHistory {
+  id String @id @default(uuid())
+
+  requestId String
+  actorId   String?
+
+  action HistoryAction
+
+  oldValue    String?
+  newValue    String?
+  description String?
+
+  createdAt DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([actorId])
+  @@index([action])
+}
+
+// ============================================================
+// NOTIFICATION
+// ============================================================
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId    String
+  requestId String?
+
+  type    NotificationType
+  channel NotificationChannel @default(IN_APP)
+  status  NotificationStatus  @default(PENDING)
+
+  title   String
+  message String
+
+  readAt DateTime?
+  sentAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  request Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([requestId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================
+// KNOWLEDGE BASE ARTICLE
+// ============================================================
+
+model KnowledgeArticle {
+  id String @id @default(uuid())
+
+  title String
+  slug  String @unique
+
+  content String
+
+  categoryId String
+  authorId   String
+
+  status ArticleStatus @default(DRAFT)
+
+  publishedAt DateTime?
+
+  viewCount Int @default(0)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  author User @relation("ArticleAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  views KnowledgeArticleView[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([status])
+}
+
+// ============================================================
+// KNOWLEDGE ARTICLE VIEW
+// ============================================================
+
+model KnowledgeArticleView {
+  id String @id @default(uuid())
+
+  articleId String
+  userId    String
+
+  viewedAt DateTime @default(now())
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([viewedAt])
+}
+
+// ============================================================
+// MODEL CATEGORY KEYWORD
+// ============================================================
+
+model CategoryKeyword {
+  id         String   @id @default(uuid())
+  categoryId String
+  keyword    String
+  weight     Int      @default(5)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, keyword])
+  @@index([keyword])
+  @@index([categoryId])
+}
+

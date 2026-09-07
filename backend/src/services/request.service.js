@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import prisma from "../config/database.js";
+import { calculateResolutionSla } from "./sla-calculator.service.js";
 
 /**
  * Determine the request category from the title and description.
@@ -207,14 +208,13 @@ export const createRequest = async ({ creatorId, title, description }) => {
   }
 
   const submittedAt = new Date();
+  const assignedAt = submittedAt;
 
-  const responseDueAt = new Date(
-    submittedAt.getTime() + slaPolicy.responseTimeMinutes * 60 * 1000,
-  );
-
-  const resolutionDueAt = new Date(
-    submittedAt.getTime() + slaPolicy.resolutionTimeMinutes * 60 * 1000,
-  );
+  const { warningAt, resolutionDueAt } = await calculateResolutionSla({
+    startedAt: assignedAt,
+    resolutionTimeMinutes: slaPolicy.resolutionTimeMinutes,
+    warningPercentage: slaPolicy.warningPercentage,
+  });
 
   const ticketNumber = generateTicketNumber();
 
@@ -239,8 +239,9 @@ export const createRequest = async ({ creatorId, title, description }) => {
         sla: {
           create: {
             slaPolicyId: slaPolicy.id,
-            responseDueAt,
+            startedAt: assignedAt,
             resolutionDueAt,
+            warningAt,
           },
         },
 
@@ -248,7 +249,7 @@ export const createRequest = async ({ creatorId, title, description }) => {
           create: {
             assignedTo: officer.id,
             assignmentType: "AUTOMATIC",
-            assignedAt: submittedAt,
+            assignedAt,
           },
         },
 

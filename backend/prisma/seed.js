@@ -288,6 +288,68 @@ const categoryKeywordConfig = {
   ],
 };
 
+// ============================================================
+// BUSINESS HOURS CONFIGURATION
+// ============================================================
+
+const businessHours = [
+  {
+    day: "MONDAY",
+    startTime: "08:30",
+    breakStartTime: "12:30",
+    breakEndTime: "13:30",
+    endTime: "17:30",
+    isWorking: true,
+  },
+  {
+    day: "TUESDAY",
+    startTime: "08:30",
+    breakStartTime: "12:30",
+    breakEndTime: "13:30",
+    endTime: "17:30",
+    isWorking: true,
+  },
+  {
+    day: "WEDNESDAY",
+    startTime: "08:30",
+    breakStartTime: "12:30",
+    breakEndTime: "13:30",
+    endTime: "17:30",
+    isWorking: true,
+  },
+  {
+    day: "THURSDAY",
+    startTime: "08:30",
+    breakStartTime: "12:30",
+    breakEndTime: "13:30",
+    endTime: "17:30",
+    isWorking: true,
+  },
+  {
+    day: "FRIDAY",
+    startTime: "08:30",
+    breakStartTime: "12:30",
+    breakEndTime: "13:30",
+    endTime: "17:30",
+    isWorking: true,
+  },
+  {
+    day: "SATURDAY",
+    startTime: "08:30",
+    breakStartTime: "12:30",
+    breakEndTime: "13:30",
+    endTime: "17:30",
+    isWorking: true,
+  },
+  {
+    day: "SUNDAY",
+    startTime: "08:30",
+    breakStartTime: null,
+    breakEndTime: null,
+    endTime: "17:30",
+    isWorking: false,
+  },
+];
 const slaPolicies = [
   // ============================================================
   // INFORMATION TECHNOLOGY
@@ -307,7 +369,7 @@ const slaPolicies = [
     departmentCode: "IT",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
-    resolutionTimeMinutes: 720,
+    resolutionTimeMinutes: 960,
     warningPercentage: 80,
   },
   {
@@ -347,7 +409,7 @@ const slaPolicies = [
     departmentCode: "FIN",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
-    resolutionTimeMinutes: 720,
+    resolutionTimeMinutes: 960,
     warningPercentage: 80,
   },
   {
@@ -387,7 +449,7 @@ const slaPolicies = [
     departmentCode: "HR",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
-    resolutionTimeMinutes: 720,
+    resolutionTimeMinutes: 960,
     warningPercentage: 80,
   },
   {
@@ -427,7 +489,7 @@ const slaPolicies = [
     departmentCode: "LEGAL",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
-    resolutionTimeMinutes: 720,
+    resolutionTimeMinutes: 960,
     warningPercentage: 80,
   },
   {
@@ -467,7 +529,7 @@ const slaPolicies = [
     departmentCode: "OPS",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
-    resolutionTimeMinutes: 720,
+    resolutionTimeMinutes: 960,
     warningPercentage: 80,
   },
   {
@@ -507,7 +569,7 @@ const slaPolicies = [
     departmentCode: "CC",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
-    resolutionTimeMinutes: 720,
+    resolutionTimeMinutes: 960,
     warningPercentage: 80,
   },
   {
@@ -1133,6 +1195,35 @@ async function main() {
 
     console.log(`✅ Keywords synchronized for ${category.name}.`);
   }
+
+  // ==========================================================
+  // BUSINESS HOURS
+  // ==========================================================
+
+  for (const hours of businessHours) {
+    await prisma.businessHours.upsert({
+      where: {
+        day: hours.day,
+      },
+      update: {
+        startTime: hours.startTime,
+        breakStartTime: hours.breakStartTime,
+        breakEndTime: hours.breakEndTime,
+        endTime: hours.endTime,
+        isWorking: hours.isWorking,
+      },
+      create: {
+        day: hours.day,
+        startTime: hours.startTime,
+        breakStartTime: hours.breakStartTime,
+        breakEndTime: hours.breakEndTime,
+        endTime: hours.endTime,
+        isWorking: hours.isWorking,
+      },
+    });
+  }
+
+  console.log("✅ Business hours synchronized.");
 
   // ==========================================================
   // SLA POLICIES

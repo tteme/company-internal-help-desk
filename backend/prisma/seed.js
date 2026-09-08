@@ -834,132 +834,7 @@ const rolePermissions = {
   ],
 };
 
-const testOfficer = {
-  employeeId: "OFF-001",
-  firstName: "IT",
-  lastName: "Officer",
-  email: "it.officer@digaf.com",
-  phone: "0900000001",
-  password: "Officer123!",
-  departmentCode: "IT",
-  branchCode: "HO",
-};
 
-const additionalOfficers = [
-  {
-    employeeId: "OFF-002",
-    firstName: "Finance",
-    lastName: "Officer",
-    email: "finance.officer@digaf.com",
-    phone: "0900000002",
-    password: "Officer123!",
-    departmentCode: "FIN",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "OFF-003",
-    firstName: "HR",
-    lastName: "Officer",
-    email: "hr.officer@digaf.com",
-    phone: "0900000003",
-    password: "Officer123!",
-    departmentCode: "HR",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "OFF-004",
-    firstName: "Legal",
-    lastName: "Officer",
-    email: "legal.officer@digaf.com",
-    phone: "0900000004",
-    password: "Officer123!",
-    departmentCode: "LEGAL",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "OFF-005",
-    firstName: "Operations",
-    lastName: "Officer",
-    email: "operations.officer@digaf.com",
-    phone: "0900000005",
-    password: "Officer123!",
-    departmentCode: "OPS",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "OFF-006",
-    firstName: "Credit",
-    lastName: "Officer",
-    email: "credit.officer@digaf.com",
-    phone: "0900000006",
-    password: "Officer123!",
-    departmentCode: "CC",
-    branchCode: "HO",
-  },
-];
-
-const departmentHeads = [
-  {
-    employeeId: "HEAD-001",
-    firstName: "IT",
-    lastName: "Head",
-    email: "it.head@digaf.com",
-    phone: "0900000011",
-    password: "Head123!",
-    departmentCode: "IT",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "HEAD-002",
-    firstName: "Finance",
-    lastName: "Head",
-    email: "finance.head@digaf.com",
-    phone: "0900000012",
-    password: "Head123!",
-    departmentCode: "FIN",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "HEAD-003",
-    firstName: "HR",
-    lastName: "Head",
-    email: "hr.head@digaf.com",
-    phone: "0900000013",
-    password: "Head123!",
-    departmentCode: "HR",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "HEAD-004",
-    firstName: "Legal",
-    lastName: "Head",
-    email: "legal.head@digaf.com",
-    phone: "0900000014",
-    password: "Head123!",
-    departmentCode: "LEGAL",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "HEAD-005",
-    firstName: "Operations",
-    lastName: "Head",
-    email: "operations.head@digaf.com",
-    phone: "0900000015",
-    password: "Head123!",
-    departmentCode: "OPS",
-    branchCode: "HO",
-  },
-  {
-    employeeId: "HEAD-006",
-    firstName: "Credit",
-    lastName: "Control Head",
-    email: "credit.head@digaf.com",
-    phone: "0900000016",
-    password: "Head123!",
-    departmentCode: "CC",
-    branchCode: "HO",
-  },
-];
 // ============================================================
 // MAIN
 // ============================================================
@@ -1283,16 +1158,6 @@ async function main() {
     throw new Error("SYSTEM_ADMINISTRATOR role not found.");
   }
 
-  const headOffice = await prisma.branch.findUnique({
-    where: {
-      code: "HO",
-    },
-  });
-
-  if (!headOffice) {
-    throw new Error("Head Office branch not found.");
-  }
-
   const systemAdminPassword = await hashPassword("ChangeMe123!");
 
   const systemAdmin = await prisma.user.upsert({
@@ -1306,7 +1171,8 @@ async function main() {
       status: "ACTIVE",
       isActive: true,
       emailVerified: true,
-      branchId: headOffice.id,
+      branchId: null,
+      departmentId: null,
       passwordHash: systemAdminPassword,
     },
     create: {
@@ -1319,7 +1185,8 @@ async function main() {
       status: "ACTIVE",
       isActive: true,
       emailVerified: true,
-      branchId: headOffice.id,
+      branchId: null,
+      departmentId: null,
     },
   });
 
@@ -1342,6 +1209,10 @@ async function main() {
   // ==========================================================
   // TEST EMPLOYEE
   // ==========================================================
+  //
+  // Development/testing account only.
+  // Remove this section before production deployment.
+  // ==========================================================
 
   const employeeRole = await prisma.role.findUnique({
     where: {
@@ -1353,45 +1224,62 @@ async function main() {
     throw new Error("EMPLOYEE role not found.");
   }
 
-  const employeePassword = await hashPassword("Employee123!");
+  const testEmployeePassword = await hashPassword("TestEmployee123!");
 
-  const employee = await prisma.user.upsert({
+  const testEmployeeBranch = await prisma.branch.findUnique({
     where: {
-      employeeId: "EMP-001",
+      code: "BW",
     },
+  });
+
+  if (!testEmployeeBranch) {
+    throw new Error("Test employee branch not found.");
+  }
+
+  const testEmployee = await prisma.user.upsert({
+    where: {
+      email: "test.employee@digaf.com",
+    },
+
     update: {
       firstName: "Test",
       lastName: "Employee",
-      email: "employee@digaf.com",
-      passwordHash: employeePassword,
       role: "EMPLOYEE",
       status: "ACTIVE",
-      emailVerified: true,
       isActive: true,
+      emailVerified: true,
+      branchId: testEmployeeBranch.id,
+      departmentId: null,
+      passwordHash: testEmployeePassword,
     },
+
     create: {
-      employeeId: "EMP-001",
+      employeeId: "TEST-EMP-001",
       firstName: "Test",
       lastName: "Employee",
-      email: "employee@digaf.com",
-      passwordHash: employeePassword,
+      email: "test.employee@digaf.com",
+      passwordHash: testEmployeePassword,
       role: "EMPLOYEE",
       status: "ACTIVE",
-      emailVerified: true,
       isActive: true,
+      emailVerified: true,
+      branchId: testEmployeeBranch.id,
+      departmentId: null,
     },
   });
 
   await prisma.userRoleAssignment.upsert({
     where: {
       userId_roleId: {
-        userId: employee.id,
+        userId: testEmployee.id,
         roleId: employeeRole.id,
       },
     },
+
     update: {},
+
     create: {
-      userId: employee.id,
+      userId: testEmployee.id,
       roleId: employeeRole.id,
     },
   });
@@ -1401,173 +1289,101 @@ async function main() {
   // ==========================================================
   // TEST DEPARTMENT OFFICER
   // ==========================================================
+  //
+  // Development/testing account only.
+  // Remove this section before production deployment.
+  // ==========================================================
 
-  const officerRole = await prisma.role.findUnique({
+  const departmentOfficerRole = await prisma.role.findUnique({
     where: {
       name: "DEPARTMENT_OFFICER",
     },
   });
 
-  if (!officerRole) {
+  if (!departmentOfficerRole) {
     throw new Error("DEPARTMENT_OFFICER role not found.");
   }
 
   const itDepartment = await prisma.department.findUnique({
     where: {
-      code: testOfficer.departmentCode,
+      code: "IT",
     },
   });
 
   if (!itDepartment) {
-    throw new Error(`Department not found: ${testOfficer.departmentCode}`);
+    throw new Error("IT department not found.");
   }
 
   const officerBranch = await prisma.branch.findUnique({
     where: {
-      code: testOfficer.branchCode,
+      code: "HO",
     },
   });
 
   if (!officerBranch) {
-    throw new Error(`Branch not found: ${testOfficer.branchCode}`);
+    throw new Error("Head Office branch not found.");
   }
 
-  const officerPassword = await hashPassword(testOfficer.password);
+  const testOfficerPassword = await hashPassword("TestOfficer123!");
 
-  const officer = await prisma.user.upsert({
+  const testOfficer = await prisma.user.upsert({
     where: {
-      employeeId: testOfficer.employeeId,
+      email: "test.officer@digaf.com",
     },
+
     update: {
-      firstName: testOfficer.firstName,
-      lastName: testOfficer.lastName,
-      email: testOfficer.email,
-      phone: testOfficer.phone,
-      passwordHash: officerPassword,
+      firstName: "Test",
+      lastName: "IT Officer",
       role: "DEPARTMENT_OFFICER",
       status: "ACTIVE",
-      availability: "AVAILABLE",
-      emailVerified: true,
       isActive: true,
+      emailVerified: true,
       branchId: officerBranch.id,
       departmentId: itDepartment.id,
+      passwordHash: testOfficerPassword,
+      availability: "AVAILABLE",
     },
+
     create: {
-      employeeId: testOfficer.employeeId,
-      firstName: testOfficer.firstName,
-      lastName: testOfficer.lastName,
-      email: testOfficer.email,
-      phone: testOfficer.phone,
-      passwordHash: officerPassword,
+      employeeId: "TEST-OFFICER-001",
+      firstName: "Test",
+      lastName: "IT Officer",
+      email: "test.officer@digaf.com",
+      passwordHash: testOfficerPassword,
       role: "DEPARTMENT_OFFICER",
       status: "ACTIVE",
-      availability: "AVAILABLE",
-      emailVerified: true,
       isActive: true,
+      emailVerified: true,
       branchId: officerBranch.id,
       departmentId: itDepartment.id,
+      availability: "AVAILABLE",
     },
   });
 
   await prisma.userRoleAssignment.upsert({
     where: {
       userId_roleId: {
-        userId: officer.id,
-        roleId: officerRole.id,
+        userId: testOfficer.id,
+        roleId: departmentOfficerRole.id,
       },
     },
+
     update: {},
+
     create: {
-      userId: officer.id,
-      roleId: officerRole.id,
+      userId: testOfficer.id,
+      roleId: departmentOfficerRole.id,
     },
   });
 
   console.log("✅ Test Department Officer synchronized.");
 
   // ==========================================================
-  // ADDITIONAL DEPARTMENT OFFICERS
+  // TEST DEPARTMENT HEAD
   // ==========================================================
-
-  for (const officerData of additionalOfficers) {
-    const department = await prisma.department.findUnique({
-      where: {
-        code: officerData.departmentCode,
-      },
-    });
-
-    if (!department) {
-      throw new Error(`Department not found: ${officerData.departmentCode}`);
-    }
-
-    const branch = await prisma.branch.findUnique({
-      where: {
-        code: officerData.branchCode,
-      },
-    });
-
-    if (!branch) {
-      throw new Error(`Branch not found: ${officerData.branchCode}`);
-    }
-
-    const passwordHash = await hashPassword(officerData.password);
-
-    const additionalOfficer = await prisma.user.upsert({
-      where: {
-        employeeId: officerData.employeeId,
-      },
-      update: {
-        firstName: officerData.firstName,
-        lastName: officerData.lastName,
-        email: officerData.email,
-        phone: officerData.phone,
-        passwordHash,
-        role: "DEPARTMENT_OFFICER",
-        status: "ACTIVE",
-        availability: "AVAILABLE",
-        emailVerified: true,
-        isActive: true,
-        branchId: branch.id,
-        departmentId: department.id,
-      },
-      create: {
-        employeeId: officerData.employeeId,
-        firstName: officerData.firstName,
-        lastName: officerData.lastName,
-        email: officerData.email,
-        phone: officerData.phone,
-        passwordHash,
-        role: "DEPARTMENT_OFFICER",
-        status: "ACTIVE",
-        availability: "AVAILABLE",
-        emailVerified: true,
-        isActive: true,
-        branchId: branch.id,
-        departmentId: department.id,
-      },
-    });
-
-    await prisma.userRoleAssignment.upsert({
-      where: {
-        userId_roleId: {
-          userId: additionalOfficer.id,
-          roleId: officerRole.id,
-        },
-      },
-      update: {},
-      create: {
-        userId: additionalOfficer.id,
-        roleId: officerRole.id,
-      },
-    });
-
-    console.log(
-      `✅ ${officerData.employeeId} (${department.name}) synchronized.`,
-    );
-  }
-
-  // ==========================================================
-  // DEPARTMENT HEADS
+  //
+  // Development/testing account only.
+  // Remove this section before production deployment.
   // ==========================================================
 
   const departmentHeadRole = await prisma.role.findUnique({
@@ -1580,86 +1396,59 @@ async function main() {
     throw new Error("DEPARTMENT_HEAD role not found.");
   }
 
-  for (const headData of departmentHeads) {
-    const department = await prisma.department.findUnique({
-      where: {
-        code: headData.departmentCode,
-      },
-    });
+  const testHeadPassword = await hashPassword("TestHead123!");
 
-    if (!department) {
-      throw new Error(`Department not found: ${headData.departmentCode}`);
-    }
+  const testHead = await prisma.user.upsert({
+    where: {
+      email: "test.head@digaf.com",
+    },
 
-    const branch = await prisma.branch.findUnique({
-      where: {
-        code: headData.branchCode,
-      },
-    });
+    update: {
+      firstName: "Test",
+      lastName: "IT Head",
+      role: "DEPARTMENT_HEAD",
+      status: "ACTIVE",
+      isActive: true,
+      emailVerified: true,
+      branchId: officerBranch.id,
+      departmentId: itDepartment.id,
+      passwordHash: testHeadPassword,
+      availability: "AVAILABLE",
+    },
 
-    if (!branch) {
-      throw new Error(`Branch not found: ${headData.branchCode}`);
-    }
+    create: {
+      employeeId: "TEST-HEAD-001",
+      firstName: "Test",
+      lastName: "IT Head",
+      email: "test.head@digaf.com",
+      passwordHash: testHeadPassword,
+      role: "DEPARTMENT_HEAD",
+      status: "ACTIVE",
+      isActive: true,
+      emailVerified: true,
+      branchId: officerBranch.id,
+      departmentId: itDepartment.id,
+      availability: "AVAILABLE",
+    },
+  });
 
-    const passwordHash = await hashPassword(headData.password);
-
-    const departmentHead = await prisma.user.upsert({
-      where: {
-        employeeId: headData.employeeId,
-      },
-
-      update: {
-        firstName: headData.firstName,
-        lastName: headData.lastName,
-        email: headData.email,
-        phone: headData.phone,
-        passwordHash,
-        role: "DEPARTMENT_HEAD",
-        status: "ACTIVE",
-        availability: "AVAILABLE",
-        emailVerified: true,
-        isActive: true,
-        branchId: branch.id,
-        departmentId: department.id,
-      },
-
-      create: {
-        employeeId: headData.employeeId,
-        firstName: headData.firstName,
-        lastName: headData.lastName,
-        email: headData.email,
-        phone: headData.phone,
-        passwordHash,
-        role: "DEPARTMENT_HEAD",
-        status: "ACTIVE",
-        availability: "AVAILABLE",
-        emailVerified: true,
-        isActive: true,
-        branchId: branch.id,
-        departmentId: department.id,
-      },
-    });
-
-    await prisma.userRoleAssignment.upsert({
-      where: {
-        userId_roleId: {
-          userId: departmentHead.id,
-          roleId: departmentHeadRole.id,
-        },
-      },
-
-      update: {},
-
-      create: {
-        userId: departmentHead.id,
+  await prisma.userRoleAssignment.upsert({
+    where: {
+      userId_roleId: {
+        userId: testHead.id,
         roleId: departmentHeadRole.id,
       },
-    });
+    },
 
-    console.log(`✅ ${headData.employeeId} (${department.name}) synchronized.`);
-  }
+    update: {},
 
-  console.log("✅ Department Heads synchronized.");
+    create: {
+      userId: testHead.id,
+      roleId: departmentHeadRole.id,
+    },
+  });
+
+  console.log("✅ Test Department Head synchronized.");
 
   console.log("========================================");
   console.log("Database seed completed successfully.");

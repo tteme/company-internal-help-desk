@@ -12,8 +12,44 @@ export const createUser = async ({
   role,
   branchId,
   departmentId,
+  createdByRole,
 }) => {
-  // Check whether employee ID already exists
+  // ============================================================
+  // 1. VALIDATE ROLE-CREATION AUTHORITY
+  // ============================================================
+
+  const systemAdministratorCreatableRoles = [
+    "EMPLOYEE",
+    "DEPARTMENT_OFFICER",
+    "DEPARTMENT_HEAD",
+    "ADMIN",
+    "SYSTEM_ADMINISTRATOR",
+  ];
+
+  const adminCreatableRoles = [
+    "EMPLOYEE",
+    "DEPARTMENT_OFFICER",
+    "DEPARTMENT_HEAD",
+  ];
+
+  if (createdByRole === "SYSTEM_ADMINISTRATOR") {
+    if (!systemAdministratorCreatableRoles.includes(role)) {
+      throw new Error("You are not authorized to create this user role.");
+    }
+  } else if (createdByRole === "ADMIN") {
+    if (!adminCreatableRoles.includes(role)) {
+      throw new Error(
+        "Admins cannot create Admin or System Administrator accounts.",
+      );
+    }
+  } else {
+    throw new Error("You are not authorized to create user accounts.");
+  }
+
+  // ============================================================
+  // 2. CHECK WHETHER EMPLOYEE ID ALREADY EXISTS
+  // ============================================================
+
   const existingEmployee = await prisma.user.findUnique({
     where: {
       employeeId,
@@ -132,7 +168,7 @@ export const createUser = async ({
     activationExpires: user.activationExpires,
     createdAt: user.createdAt,
   };
-};
+};;
 export const activateUser = async (token, password) => {
   // Hash the token received from the activation link
   const activationTokenHash = crypto
@@ -279,116 +315,191 @@ export const getUserById = async (id) => {
   return user;
 };
 
+
 export const updateUser = async (id, data) => {
+  // ============================================================
+  // 1. FIND EXISTING USER
+  // ============================================================
+
   const existingUser = await prisma.user.findUnique({
-    where: { id },
+    where: {
+      id,
+    },
   });
 
   if (!existingUser) {
     throw new Error("User not found.");
   }
 
-  const { firstName, lastName, email, phone, role, branchId, departmentId } =
-    data;
+  // ============================================================
+  // 2. PREPARE UPDATED VALUES
+  // ============================================================
 
-  // Check email uniqueness
-  if (email && email !== existingUser.email) {
-    const emailExists = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (emailExists) {
-      throw new Error("Email address already exists.");
-    }
-  }
+  const {
+    employeeId,
+    firstName,
+    lastName,
+    email,
+    phone,
+    role,
+    branchId,
+    departmentId,
+    updatedByRole,
+  } = data;
 
   const newRole = role || existingUser.role;
+  // ============================================================
+  // 3. VALIDATE ROLE-CHANGE AUTHORITY
+  // ============================================================
 
-  // Branch rules
-  if (
-    newRole === "EMPLOYEE" ||
-    newRole === "DEPARTMENT_OFFICER" ||
-    newRole === "DEPARTMENT_HEAD"
-  ) {
-    const finalBranchId =
-      branchId !== undefined ? branchId : existingUser.branchId;
+  const adminAllowedRoles = [
+    "EMPLOYEE",
+    "DEPARTMENT_OFFICER",
+    "DEPARTMENT_HEAD",
+  ];
 
-    if (!finalBranchId) {
-      throw new Error("Branch is required for this user role.");
+  if (updatedByRole === "ADMIN") {
+    if (!adminAllowedRoles.includes(newRole)) {
+      throw new Error(
+        "Admins cannot assign Admin or System Administrator roles.",
+      );
+    }
+  } else if (updatedByRole !== "SYSTEM_ADMINISTRATOR") {
+    throw new Error("You are not authorized to update user accounts.");
+  }
+
+  // ============================================================
+  // 4. CHECK EMAIL UNIQUENESS
+  // ============================================================
+
+  if (email && email !== existingUser.email) {
+    const existingEmailUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (existingEmailUser && existingEmailUser.id !== id) {
+      throw new Error("Email is already in use.");
     }
   }
 
-  // Department rules
-  if (newRole === "DEPARTMENT_OFFICER" || newRole === "DEPARTMENT_HEAD") {
-    const finalDepartmentId =
-      departmentId !== undefined ? departmentId : existingUser.departmentId;
+  // ============================================================
+  // 5. VALIDATE ROLE
+  // ============================================================
 
-    if (!finalDepartmentId) {
-      throw new Error("Department is required for this user role.");
-    }
-  }
-
-  // Employees should not belong to a department
-  const finalDepartmentId =
-    newRole === "EMPLOYEE"
-      ? null
-      : departmentId !== undefined
-        ? departmentId
-        : existingUser.departmentId;
-
-  // Admin/System Administrator don't require branch
-  const finalBranchId =
-    newRole === "ADMIN" || newRole === "SYSTEM_ADMINISTRATOR"
-      ? null
-      : branchId !== undefined
-        ? branchId
-        : existingUser.branchId;
-
-  const user = await prisma.user.update({
-    where: { id },
-
-    data: {
-      ...(firstName !== undefined && { firstName }),
-      ...(lastName !== undefined && { lastName }),
-      ...(email !== undefined && { email }),
-      ...(phone !== undefined && { phone: phone || null }),
-
-      role: newRole,
-      branchId: finalBranchId,
-      departmentId: finalDepartmentId,
-    },
-
-    select: {
-      id: true,
-      employeeId: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      role: true,
-      status: true,
-      availability: true,
-      emailVerified: true,
-      isActive: true,
-      lastLoginAt: true,
-      createdAt: true,
-      updatedAt: true,
-
-      branch: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-
-      department: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+  const roleRecord = await prisma.role.findUnique({
+    where: {
+      name: newRole,
     },
   });
 
-  return user;
-};
+  if (!roleRecord) {
+    throw new Error("Selected role does not exist.");
+  }
+
+  // ============================================================
+  // 6. VALIDATE BRANCH REQUIREMENTS
+  // ============================================================
+
+  const branchRequiredRoles = [
+    "EMPLOYEE",
+    "DEPARTMENT_OFFICER",
+    "DEPARTMENT_HEAD",
+  ];
+
+  if (branchRequiredRoles.includes(newRole) && !branchId) {
+    throw new Error("Branch is required for this role.");
+  }
+
+  // ADMIN and SYSTEM_ADMINISTRATOR do not belong to a branch.
+  const finalBranchId = branchRequiredRoles.includes(newRole) ? branchId : null;
+
+  // ============================================================
+  // 7. VALIDATE DEPARTMENT REQUIREMENTS
+  // ============================================================
+
+  const departmentRequiredRoles = ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"];
+
+  if (departmentRequiredRoles.includes(newRole) && !departmentId) {
+    throw new Error("Department is required for this role.");
+  }
+
+  // Employees, Admins and System Administrators do not belong
+  // to a department.
+  const finalDepartmentId = departmentRequiredRoles.includes(newRole)
+    ? departmentId
+    : null;
+
+  // ============================================================
+  // 7. UPDATE USER AND ROLE ASSIGNMENT IN ONE TRANSACTION
+  // ============================================================
+
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    // ----------------------------------------------------------
+    // 7.1 Update the User record
+    // ----------------------------------------------------------
+
+    const user = await tx.user.update({
+      where: {
+        id,
+      },
+      data: {
+        ...(employeeId !== undefined && { employeeId }),
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        role: newRole,
+        branchId: finalBranchId,
+        departmentId: finalDepartmentId,
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        isActive: true,
+        emailVerified: true,
+        branch: true,
+        department: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // ----------------------------------------------------------
+    // 7.2 Keep UserRoleAssignment synchronized
+    // ----------------------------------------------------------
+
+    // The system uses User.role as the user's single business role.
+    // Therefore, remove any old role assignments first.
+    await tx.userRoleAssignment.deleteMany({
+      where: {
+        userId: id,
+      },
+    });
+
+    // Create exactly one role assignment matching User.role.
+    await tx.userRoleAssignment.create({
+      data: {
+        userId: id,
+        roleId: roleRecord.id,
+      },
+    });
+
+    return user;
+  });
+
+  // ============================================================
+  // 8. RETURN UPDATED USER
+  // ============================================================
+
+  return updatedUser;
+};;
+
+

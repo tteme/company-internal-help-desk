@@ -7,6 +7,7 @@ import {
   resolveRequest,
   confirmOrRejectRequest,
   escalateRequest,
+  getMyRequests,
 } from "../services/request.service.js";
 
 export const createRequestController = async (req, res) => {
@@ -251,3 +252,38 @@ export const escalateRequestController = async (req, res) => {
   }
 };
 
+/**
+ * Get all requests created by the authenticated employee.
+ */
+export const getMyRequestsController = async (req, res) => {
+  try {
+    // ---------------------------------------------------------
+    // 1. Get authenticated user's ID
+    // ---------------------------------------------------------
+
+    const userId = req.user.id;
+
+    // ---------------------------------------------------------
+    // 2. Get requests created by this employee
+    // ---------------------------------------------------------
+
+    const requests = await getMyRequests(userId);
+
+    // ---------------------------------------------------------
+    // 3. Return requests
+    // ---------------------------------------------------------
+
+    return res.status(200).json({
+      success: true,
+      message: "Your requests retrieved successfully.",
+      data: requests,
+    });
+  } catch (error) {
+    console.error("Get my requests error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve your requests.",
+    });
+  }
+};

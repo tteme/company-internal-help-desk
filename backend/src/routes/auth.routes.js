@@ -1,11 +1,10 @@
 import express from "express";
 import { loginUser } from "../controllers/auth.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
-import { requirePermission } from "../middlewares/permission.middleware.js";
+import { loginValidator } from "../validators/auth.validator.js";
+import { validate } from "../middlewares/validation.middleware.js";
 
 const router = express.Router();
 
-router.post("/login", loginUser);
-
+router.post("/login", loginValidator, validate, loginUser);
 
 export default router;

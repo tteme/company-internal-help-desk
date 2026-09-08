@@ -8,7 +8,10 @@ import {
 
 export const createUserController = async (req, res) => {
   try {
-    const user = await createUser(req.body);
+    const user = await createUser({
+      ...req.body,
+      createdByRole: req.user.role,
+    });
 
     return res.status(201).json({
       success: true,
@@ -91,7 +94,10 @@ export const getUserByIdController = async (req, res) => {
 
 export const updateUserController = async (req, res) => {
   try {
-    const user = await updateUser(req.params.id, req.body);
+    const user = await updateUser(req.params.id, {
+      ...req.body,
+      updatedByRole: req.user.role,
+    });
 
     return res.status(200).json({
       success: true,

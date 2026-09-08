@@ -12,6 +12,7 @@ import {
   createUserValidator,
   updateUserValidator,
   activateUserValidator,
+  userIdValidator,
 } from "../validators/user.validator.js";
 import { validate } from "../middlewares/validation.middleware.js";
 
@@ -26,16 +27,26 @@ router.post(
   createUserController,
 );
 router.get(
-  "/",
+  "/:id",
   authenticate,
   requirePermission("user.view"),
-  getUsersController,
+  userIdValidator,
+  validate,
+  getUserByIdController,
+);
+
+router.post(
+  "/activate",
+  activateUserValidator,
+  validate,
+  activateUserController,
 );
 
 router.get(
   "/:id",
   authenticate,
   requirePermission("user.view"),
+  userIdValidator,
   getUserByIdController,
 );
 
@@ -43,15 +54,10 @@ router.patch(
   "/:id",
   authenticate,
   requirePermission("user.update"),
+  userIdValidator,
   updateUserValidator,
   validate,
   updateUserController,
-);
-router.post(
-  "/activate",
-  activateUserValidator,
-  validate,
-  activateUserController,
 );
 
 export default router;

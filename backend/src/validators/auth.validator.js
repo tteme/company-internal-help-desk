@@ -5,6 +5,7 @@ export const loginValidator = [
     .trim()
     .notEmpty()
     .withMessage("Email is required.")
+    .bail()
     .isEmail()
     .withMessage("Please provide a valid email address."),
 

@@ -1,4 +1,4 @@
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 
 export const createUserValidator = [
   body("employeeId")
@@ -129,4 +129,7 @@ export const activateUserValidator = [
 
       return true;
     }),
+];
+export const userIdValidator = [
+  param("id").isUUID().withMessage("User ID must be a valid UUID."),
 ];

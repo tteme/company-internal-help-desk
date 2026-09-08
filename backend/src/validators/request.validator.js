@@ -79,3 +79,7 @@ export const escalateRequestValidator = [
     .isLength({ max: 1000 })
     .withMessage("Description cannot exceed 1000 characters."),
 ];
+
+export const requestIdValidator = [
+  param("id").isUUID().withMessage("Request ID must be a valid UUID."),
+];

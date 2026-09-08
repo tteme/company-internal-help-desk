@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import prisma from "../config/database.js";
 import { calculateResolutionSla } from "./sla-calculator.service.js";
+import { createNotification } from "./notification.service.js";
 
 /**
  * Determine the request category from the title and description.
@@ -292,6 +293,15 @@ export const createRequest = async ({ creatorId, title, description }) => {
         description: `Request automatically assigned to ${officer.firstName} ${officer.lastName}.`,
       },
     });
+    await createNotification({
+      userId: officer.id,
+      requestId: request.id,
+      type: "REQUEST_ASSIGNED",
+      channel: "IN_APP",
+      title: "New request assigned",
+      message: `A new help desk request ${request.ticketNumber} has been assigned to you.`,
+      db: tx,
+    });
 
     return request;
   });
@@ -335,6 +345,97 @@ export const getOfficerRequests = async (officerId) => {
 };
 
 /**
+ * Get all requests created by the authenticated employee.
+ *
+ * The userId comes from the authenticated JWT.
+ *
+ * Security:
+ * - Only requests where creatorId matches userId are returned.
+ * - The employee cannot provide another user's ID.
+ */
+export const getMyRequests = async (userId) => {
+  // ---------------------------------------------------------
+  // 1. Find requests created by this employee
+  // ---------------------------------------------------------
+
+  const requests = await prisma.request.findMany({
+    where: {
+      creatorId: userId,
+    },
+
+    // -------------------------------------------------------
+    // 2. Show newest requests first
+    // -------------------------------------------------------
+
+    orderBy: {
+      createdAt: "desc",
+    },
+
+    // -------------------------------------------------------
+    // 3. Include information needed by the employee
+    // -------------------------------------------------------
+
+    include: {
+      category: true,
+
+      department: true,
+
+      assignee: {
+        select: {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+          availability: true,
+        },
+      },
+
+      sla: {
+        include: {
+          slaPolicy: true,
+        },
+      },
+
+      escalations: {
+        orderBy: {
+          escalatedAt: "desc",
+        },
+
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+
+          toUser: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // ---------------------------------------------------------
+  // 4. Return employee's requests
+  // ---------------------------------------------------------
+
+  return requests;
+};
+
+/**
  * Get a single request by ID.
  *
  * Access is allowed for:
@@ -349,11 +450,7 @@ export const getOfficerRequests = async (officerId) => {
  * - Head remains assigned
  * - Head assignment.firstViewedAt is recorded
  */
-export const getRequestById = async ({
-  requestId,
-  userId,
-  userRole,
-}) => {
+export const getRequestById = async ({ requestId, userId, userRole }) => {
   const request = await prisma.request.findUnique({
     where: {
       id: requestId,
@@ -486,27 +583,21 @@ export const getRequestById = async ({
   // 1. Authorization
   // ---------------------------------------------------------
 
-  const isRequestCreator =
-    request.creatorId === userId;
+  const isRequestCreator = request.creatorId === userId;
 
   const isCurrentOfficer =
-    userRole === "DEPARTMENT_OFFICER" &&
-    request.assigneeId === userId;
+    userRole === "DEPARTMENT_OFFICER" && request.assigneeId === userId;
 
   const isCurrentHead =
-    userRole === "DEPARTMENT_HEAD" &&
-    request.assigneeId === userId;
+    userRole === "DEPARTMENT_HEAD" && request.assigneeId === userId;
 
-  const pendingEscalation =
-    request.escalations.find(
-      (escalation) =>
-        escalation.escalatedToId === userId &&
-        escalation.status === "PENDING"
-    );
+  const pendingEscalation = request.escalations.find(
+    (escalation) =>
+      escalation.escalatedToId === userId && escalation.status === "PENDING",
+  );
 
   const isPendingEscalationHead =
-    userRole === "DEPARTMENT_HEAD" &&
-    pendingEscalation !== undefined;
+    userRole === "DEPARTMENT_HEAD" && pendingEscalation !== undefined;
 
   const isAuthorized =
     isRequestCreator ||
@@ -515,21 +606,17 @@ export const getRequestById = async ({
     isPendingEscalationHead;
 
   if (!isAuthorized) {
-    throw new Error(
-      "You are not authorized to view this request."
-    );
+    throw new Error("You are not authorized to view this request.");
   }
 
   // ---------------------------------------------------------
   // 2. Find this user's current assignment
   // ---------------------------------------------------------
 
-  let currentAssignment =
-    request.assignments.find(
-      (assignment) =>
-        assignment.assignedTo === userId &&
-        assignment.unassignedAt === null
-    );
+  let currentAssignment = request.assignments.find(
+    (assignment) =>
+      assignment.assignedTo === userId && assignment.unassignedAt === null,
+  );
 
   // ---------------------------------------------------------
   // 3. Department Head views pending escalation
@@ -539,133 +626,123 @@ export const getRequestById = async ({
     // The Head must already be the current assignee.
     if (request.assigneeId !== userId) {
       throw new Error(
-        "You are not the current assignee of this escalated request."
+        "You are not the current assignee of this escalated request.",
       );
     }
 
     // Verify that the user is an active Department Head
     // in the same department.
-    const departmentHead =
-      await prisma.user.findFirst({
-        where: {
-          id: userId,
-          role: "DEPARTMENT_HEAD",
-          status: "ACTIVE",
-          isActive: true,
-          departmentId: request.departmentId,
-        },
+    const departmentHead = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        role: "DEPARTMENT_HEAD",
+        status: "ACTIVE",
+        isActive: true,
+        departmentId: request.departmentId,
+      },
 
-        select: {
-          id: true,
-          employeeId: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      });
+      select: {
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
 
     if (!departmentHead) {
       throw new Error(
-        "Only an active Department Head from this department can accept this escalation."
+        "Only an active Department Head from this department can accept this escalation.",
       );
     }
 
     // The Head should already have an active assignment.
     if (!currentAssignment) {
-      throw new Error(
-        "Current Department Head assignment could not be found."
-      );
+      throw new Error("Current Department Head assignment could not be found.");
     }
 
     const firstViewedAt = new Date();
 
-    const result = await prisma.$transaction(
-      async (transaction) => {
-        // ---------------------------------------------------
-        // Change request status
-        // ESCALATED → IN_PROGRESS
-        // ---------------------------------------------------
+    const result = await prisma.$transaction(async (transaction) => {
+      // ---------------------------------------------------
+      // Change request status
+      // ESCALATED → IN_PROGRESS
+      // ---------------------------------------------------
 
-        const updatedRequest =
-          await transaction.request.update({
-            where: {
-              id: request.id,
-            },
+      const updatedRequest = await transaction.request.update({
+        where: {
+          id: request.id,
+        },
 
-            data: {
-              status: "IN_PROGRESS",
-            },
-          });
+        data: {
+          status: "IN_PROGRESS",
+        },
+      });
 
-        // ---------------------------------------------------
-        // Accept escalation
-        // PENDING → ACCEPTED
-        // ---------------------------------------------------
+      // ---------------------------------------------------
+      // Accept escalation
+      // PENDING → ACCEPTED
+      // ---------------------------------------------------
 
-        const updatedEscalation =
-          await transaction.requestEscalation.update({
-            where: {
-              id: pendingEscalation.id,
-            },
+      const updatedEscalation = await transaction.requestEscalation.update({
+        where: {
+          id: pendingEscalation.id,
+        },
 
-            data: {
-              status: "ACCEPTED",
-            },
-          });
+        data: {
+          status: "ACCEPTED",
+        },
+      });
 
-        // ---------------------------------------------------
-        // Record Head's first view
-        // ---------------------------------------------------
+      // ---------------------------------------------------
+      // Record Head's first view
+      // ---------------------------------------------------
 
-        const updatedAssignment =
-          currentAssignment.firstViewedAt === null
-            ? await transaction.requestAssignment.update({
-                where: {
-                  id: currentAssignment.id,
-                },
+      const updatedAssignment =
+        currentAssignment.firstViewedAt === null
+          ? await transaction.requestAssignment.update({
+              where: {
+                id: currentAssignment.id,
+              },
 
-                data: {
-                  firstViewedAt,
-                },
-              })
-            : currentAssignment;
+              data: {
+                firstViewedAt,
+              },
+            })
+          : currentAssignment;
 
-        // ---------------------------------------------------
-        // Record history
-        // ---------------------------------------------------
+      // ---------------------------------------------------
+      // Record history
+      // ---------------------------------------------------
 
-        await transaction.requestHistory.create({
-          data: {
-            requestId: request.id,
-            actorId: departmentHead.id,
-            action: "STATUS_CHANGED",
-            oldValue: "ESCALATED",
-            newValue: "IN_PROGRESS",
-            description:
-              "Department Head viewed the escalated request and accepted responsibility.",
-          },
-        });
+      await transaction.requestHistory.create({
+        data: {
+          requestId: request.id,
+          actorId: departmentHead.id,
+          action: "STATUS_CHANGED",
+          oldValue: "ESCALATED",
+          newValue: "IN_PROGRESS",
+          description:
+            "Department Head viewed the escalated request and accepted responsibility.",
+        },
+      });
 
-        return {
-          updatedRequest,
-          updatedEscalation,
-          updatedAssignment,
-        };
-      }
-    );
+      return {
+        updatedRequest,
+        updatedEscalation,
+        updatedAssignment,
+      };
+    });
 
     // -------------------------------------------------------
     // Update returned request object
     // -------------------------------------------------------
 
-    request.status =
-      result.updatedRequest.status;
+    request.status = result.updatedRequest.status;
 
-    pendingEscalation.status =
-      result.updatedEscalation.status;
+    pendingEscalation.status = result.updatedEscalation.status;
 
-    currentAssignment.firstViewedAt =
-      result.updatedAssignment.firstViewedAt;
+    currentAssignment.firstViewedAt = result.updatedAssignment.firstViewedAt;
 
     return request;
   }
@@ -681,8 +758,7 @@ export const getRequestById = async ({
   // an assignment firstViewedAt.
   // ---------------------------------------------------------
 
-  const isSupportAssignee =
-    isCurrentOfficer || isCurrentHead;
+  const isSupportAssignee = isCurrentOfficer || isCurrentHead;
 
   if (
     isSupportAssignee &&
@@ -691,19 +767,17 @@ export const getRequestById = async ({
   ) {
     const firstViewedAt = new Date();
 
-    const updatedAssignment =
-      await prisma.requestAssignment.update({
-        where: {
-          id: currentAssignment.id,
-        },
+    const updatedAssignment = await prisma.requestAssignment.update({
+      where: {
+        id: currentAssignment.id,
+      },
 
-        data: {
-          firstViewedAt,
-        },
-      });
+      data: {
+        firstViewedAt,
+      },
+    });
 
-    currentAssignment.firstViewedAt =
-      updatedAssignment.firstViewedAt;
+    currentAssignment.firstViewedAt = updatedAssignment.firstViewedAt;
   }
 
   // ---------------------------------------------------------
@@ -796,9 +870,7 @@ export const addRequestComment = async ({ requestId, userId, content }) => {
 
   const isAssignedSupportUser =
     request.assigneeId === userId &&
-    ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"].includes(
-      request.assignee?.role,
-    );
+    ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"].includes(request.assignee?.role);
 
   if (!isCreator && !isAssignedSupportUser) {
     throw new Error("You are not authorized to comment on this request.");
@@ -862,29 +934,52 @@ export const addRequestComment = async ({ requestId, userId, content }) => {
     };
   });
 };
+
 /**
  * Resolve a request.
  *
- * IN_PROGRESS → RESOLVED
+ * Business flow:
  *
- * A request can be resolved by:
- * - The currently assigned Department Officer
- * - The currently assigned Department Head
+ * IN_PROGRESS
+ *      ↓
+ * Officer / Department Head resolves
+ *      ↓
+ * RESOLVED
+ *      +
+ * Resolution message recorded as a comment
+ *      +
+ * Employee receives REQUEST_RESOLVED notification
+ *
+ * The employee can then:
+ *
+ * - CONFIRM → request becomes CLOSED
+ * - REJECT  → request becomes REOPENED
+ *
+ * The current assignee does not change when the employee
+ * rejects the resolution.
  */
-export const resolveRequest = async ({
-  requestId,
-  officerId,
-  message,
-}) => {
+export const resolveRequest = async ({ requestId, officerId, message }) => {
+  // ---------------------------------------------------------
+  // 1. Find the request
+  // ---------------------------------------------------------
+
   const request = await prisma.request.findUnique({
     where: {
       id: requestId,
     },
     include: {
+      creator: {
+        select: {
+          id: true,
+        },
+      },
+
       assignee: {
         select: {
           id: true,
           role: true,
+          firstName: true,
+          lastName: true,
         },
       },
     },
@@ -894,26 +989,44 @@ export const resolveRequest = async ({
     throw new Error("Request not found.");
   }
 
+  // ---------------------------------------------------------
+  // 2. Verify that the user is the current assignee
+  // ---------------------------------------------------------
+
   const isAssignedSupportUser =
     request.assigneeId === officerId &&
-    ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"].includes(
-      request.assignee?.role,
-    );
+    ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"].includes(request.assignee?.role);
 
   if (!isAssignedSupportUser) {
     throw new Error("You are not authorized to resolve this request.");
   }
 
+  // ---------------------------------------------------------
+  // 3. Verify request status
+  // ---------------------------------------------------------
+
   if (request.status !== "IN_PROGRESS") {
     throw new Error(
-      `Request cannot be resolved because its current status is ${request.status}.`,
+      "Request cannot be resolved because its current status is " +
+        request.status +
+        ".",
     );
   }
 
+  // ---------------------------------------------------------
+  // 4. Resolve the request
+  //    All related database operations happen inside
+  //    one transaction.
+  // ---------------------------------------------------------
+
   const resolvedAt = new Date();
 
-  return prisma.$transaction(async (tx) => {
-    const updatedRequest = await tx.request.update({
+  const resolutionResult = await prisma.$transaction(async (transaction) => {
+    // -------------------------------------------------------
+    // Update request status
+    // -------------------------------------------------------
+
+    const updatedRequest = await transaction.request.update({
       where: {
         id: requestId,
       },
@@ -924,7 +1037,11 @@ export const resolveRequest = async ({
       },
     });
 
-    await tx.requestComment.create({
+    // -------------------------------------------------------
+    // Record the resolution message
+    // -------------------------------------------------------
+
+    await transaction.requestComment.create({
       data: {
         requestId,
         authorId: officerId,
@@ -933,34 +1050,76 @@ export const resolveRequest = async ({
       },
     });
 
+    // -------------------------------------------------------
+    // Determine who resolved the request
+    // -------------------------------------------------------
+
     const resolverRole =
       request.assignee.role === "DEPARTMENT_HEAD"
         ? "Department Head"
         : "Department Officer";
 
-    await tx.requestHistory.create({
+    // -------------------------------------------------------
+    // Record resolution history
+    // -------------------------------------------------------
+
+    await transaction.requestHistory.create({
       data: {
         requestId,
         actorId: officerId,
         action: "RESOLVED",
         oldValue: "IN_PROGRESS",
         newValue: "RESOLVED",
-        description: `${resolverRole} resolved the request.`,
+        description: resolverRole + " resolved the request.",
       },
     });
 
-    return updatedRequest;
+    // -------------------------------------------------------
+    // Notify the employee
+    // -------------------------------------------------------
+
+    await createNotification({
+      userId: request.creator.id,
+      requestId: request.id,
+      type: "REQUEST_RESOLVED",
+      channel: "IN_APP",
+      title: "Request Resolved",
+      message:
+        "Request " +
+        request.ticketNumber +
+        " has been resolved by " +
+        request.assignee.firstName +
+        " " +
+        request.assignee.lastName +
+        ". Please review the resolution and confirm or reject it.",
+      db: transaction,
+    });
+
+    return {
+      updatedRequest,
+    };
   });
+
+  // ---------------------------------------------------------
+  // 5. Return updated request
+  // ---------------------------------------------------------
+
+  return resolutionResult.updatedRequest;
 };
 
 /**
  * Employee confirms or rejects an officer's resolution.
  *
- * CONFIRM:
- * RESOLVED → CLOSED
+ * Business flow:
  *
- * REJECT:
- * RESOLVED → REOPENED
+ * RESOLVED
+ *     
+ * Employee reviews resolution
+ *
+ * Notify assignee                
+ *
+ * The current assignee does not change
+ * when the employee rejects the resolution.
  */
 export const confirmOrRejectRequest = async ({
   requestId,
@@ -968,9 +1127,24 @@ export const confirmOrRejectRequest = async ({
   decision,
   message,
 }) => {
+  // ---------------------------------------------------------
+  // 1. Find the request
+  // ---------------------------------------------------------
+
   const request = await prisma.request.findUnique({
     where: {
       id: requestId,
+    },
+
+    include: {
+      assignee: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      },
     },
   });
 
@@ -978,22 +1152,54 @@ export const confirmOrRejectRequest = async ({
     throw new Error("Request not found.");
   }
 
+  // ---------------------------------------------------------
+  // 2. Verify that the employee created this request
+  // ---------------------------------------------------------
+
   if (request.creatorId !== employeeId) {
     throw new Error(
       "Only the employee who created the request can confirm or reject the resolution.",
     );
   }
 
+  // ---------------------------------------------------------
+  // 3. Verify request status
+  // ---------------------------------------------------------
+
   if (request.status !== "RESOLVED") {
     throw new Error(
-      `Request cannot be confirmed or rejected because its current status is ${request.status}.`,
+      "Request cannot be confirmed or rejected because its current status is " +
+        request.status +
+        ".",
+    );
+  }
+
+  // ---------------------------------------------------------
+  // 4. Verify that the request has an assignee
+  // ---------------------------------------------------------
+
+  if (!request.assignee) {
+    throw new Error(
+      "Request cannot be confirmed or rejected because it has no current assignee.",
     );
   }
 
   const now = new Date();
 
+  // ---------------------------------------------------------
+  // 5. Process employee decision
+  // ---------------------------------------------------------
+
   return prisma.$transaction(async (tx) => {
+    // =======================================================
+    // 5A. Employee CONFIRMS the resolution
+    // =======================================================
+
     if (decision === "CONFIRM") {
+      // -----------------------------------------------------
+      // Update request status
+      // -----------------------------------------------------
+
       const updatedRequest = await tx.request.update({
         where: {
           id: requestId,
@@ -1004,6 +1210,10 @@ export const confirmOrRejectRequest = async ({
           closedAt: now,
         },
       });
+
+      // -----------------------------------------------------
+      // Record confirmation history
+      // -----------------------------------------------------
 
       await tx.requestHistory.create({
         data: {
@@ -1017,8 +1227,33 @@ export const confirmOrRejectRequest = async ({
         },
       });
 
+      // -----------------------------------------------------
+      // Notify current assignee
+      // -----------------------------------------------------
+
+      await createNotification({
+        userId: request.assignee.id,
+        requestId: request.id,
+        type: "REQUEST_CLOSED",
+        channel: "IN_APP",
+        title: "Request Closed",
+        message:
+          "Request " +
+          request.ticketNumber +
+          " has been confirmed and closed by the employee.",
+        db: tx,
+      });
+
       return updatedRequest;
     }
+
+    // =======================================================
+    // 5B. Employee REJECTS the resolution
+    // =======================================================
+
+    // -------------------------------------------------------
+    // Reopen request
+    // -------------------------------------------------------
 
     const updatedRequest = await tx.request.update({
       where: {
@@ -1032,6 +1267,10 @@ export const confirmOrRejectRequest = async ({
       },
     });
 
+    // -------------------------------------------------------
+    // Record employee rejection message
+    // -------------------------------------------------------
+
     await tx.requestComment.create({
       data: {
         requestId,
@@ -1040,6 +1279,10 @@ export const confirmOrRejectRequest = async ({
         isInternal: false,
       },
     });
+
+    // -------------------------------------------------------
+    // Record reopening history
+    // -------------------------------------------------------
 
     await tx.requestHistory.create({
       data: {
@@ -1053,10 +1296,27 @@ export const confirmOrRejectRequest = async ({
       },
     });
 
+    // -------------------------------------------------------
+    // Notify current assignee
+    // -------------------------------------------------------
+
+    await createNotification({
+      userId: request.assignee.id,
+      requestId: request.id,
+      type: "REQUEST_COMMENT",
+      channel: "IN_APP",
+      title: "Request Reopened",
+      message:
+        "Request " +
+        request.ticketNumber +
+        " has been reopened by the employee. Reason: " +
+        message,
+      db: tx,
+    });
+
     return updatedRequest;
   });
 };
-
 
 /**
  * Escalate a request from a Department Officer to the
@@ -1186,18 +1446,15 @@ export const escalateRequest = async ({
   // 6. Prevent duplicate pending escalations
   // ---------------------------------------------------------
 
-  const existingPendingEscalation =
-    await prisma.requestEscalation.findFirst({
-      where: {
-        requestId: request.id,
-        status: "PENDING",
-      },
-    });
+  const existingPendingEscalation = await prisma.requestEscalation.findFirst({
+    where: {
+      requestId: request.id,
+      status: "PENDING",
+    },
+  });
 
   if (existingPendingEscalation) {
-    throw new Error(
-      "This request already has a pending escalation.",
-    );
+    throw new Error("This request already has a pending escalation.");
   }
 
   // ---------------------------------------------------------
@@ -1207,107 +1464,119 @@ export const escalateRequest = async ({
 
   const escalationCreatedAt = new Date();
 
-  const escalationResult =
-    await prisma.$transaction(async (transaction) => {
-      // -----------------------------------------------------
-      // Close the officer's current assignment
-      // -----------------------------------------------------
+  const escalationResult = await prisma.$transaction(async (transaction) => {
+    // -----------------------------------------------------
+    // Close the officer's current assignment
+    // -----------------------------------------------------
 
-      await transaction.requestAssignment.updateMany({
-        where: {
-          requestId: request.id,
-          assignedTo: officerId,
-          unassignedAt: null,
-        },
-        data: {
-          unassignedAt: escalationCreatedAt,
-        },
-      });
-
-      // -----------------------------------------------------
-      // Create Department Head assignment
-      // -----------------------------------------------------
-
-      const departmentHeadAssignment =
-        await transaction.requestAssignment.create({
-          data: {
-            requestId: request.id,
-            assignedTo: departmentHead.id,
-            assignedById: officerId,
-            assignmentType: "ESCALATION",
-            assignedAt: escalationCreatedAt,
-          },
-        });
-
-      // -----------------------------------------------------
-      // Create escalation record
-      // -----------------------------------------------------
-
-      const requestEscalation =
-        await transaction.requestEscalation.create({
-          data: {
-            requestId: request.id,
-            escalatedFromId: officerId,
-            escalatedToId: departmentHead.id,
-            reason,
-            status: "PENDING",
-            description: description || null,
-            escalatedAt: escalationCreatedAt,
-          },
-        });
-
-      // -----------------------------------------------------
-      // Transfer request assignment to Department Head
-      // -----------------------------------------------------
-
-      const updatedRequest = await transaction.request.update({
-        where: {
-          id: request.id,
-        },
-        data: {
-          assigneeId: departmentHead.id,
-          status: "ESCALATED",
-        },
-      });
-
-      // -----------------------------------------------------
-      // Record assignment history
-      // -----------------------------------------------------
-
-      await transaction.requestHistory.create({
-        data: {
-          requestId: request.id,
-          actorId: officerId,
-          action: "ASSIGNED",
-          oldValue: officerId,
-          newValue: departmentHead.id,
-          description:
-            `Request assigned to Department Head ${departmentHead.firstName} ${departmentHead.lastName} as part of escalation.`,
-        },
-      });
-
-      // -----------------------------------------------------
-      // Record escalation history
-      // -----------------------------------------------------
-
-      await transaction.requestHistory.create({
-        data: {
-          requestId: request.id,
-          actorId: officerId,
-          action: "ESCALATED",
-          oldValue: "IN_PROGRESS",
-          newValue: "ESCALATED",
-          description:
-            `Request escalated to ${departmentHead.firstName} ${departmentHead.lastName}. Reason: ${reason}.`,
-        },
-      });
-
-      return {
-        updatedRequest,
-        requestEscalation,
-        departmentHeadAssignment,
-      };
+    await transaction.requestAssignment.updateMany({
+      where: {
+        requestId: request.id,
+        assignedTo: officerId,
+        unassignedAt: null,
+      },
+      data: {
+        unassignedAt: escalationCreatedAt,
+      },
     });
+
+    // -----------------------------------------------------
+    // Create Department Head assignment
+    // -----------------------------------------------------
+
+    const departmentHeadAssignment = await transaction.requestAssignment.create(
+      {
+        data: {
+          requestId: request.id,
+          assignedTo: departmentHead.id,
+          assignedById: officerId,
+          assignmentType: "ESCALATION",
+          assignedAt: escalationCreatedAt,
+        },
+      },
+    );
+
+    // -----------------------------------------------------
+    // Create escalation record
+    // -----------------------------------------------------
+
+    const requestEscalation = await transaction.requestEscalation.create({
+      data: {
+        requestId: request.id,
+        escalatedFromId: officerId,
+        escalatedToId: departmentHead.id,
+        reason,
+        status: "PENDING",
+        description: description || null,
+        escalatedAt: escalationCreatedAt,
+      },
+    });
+
+    // -----------------------------------------------------
+    // Transfer request assignment to Department Head
+    // -----------------------------------------------------
+
+    const updatedRequest = await transaction.request.update({
+      where: {
+        id: request.id,
+      },
+      data: {
+        assigneeId: departmentHead.id,
+        status: "ESCALATED",
+      },
+    });
+
+    // -----------------------------------------------------
+    // Record assignment history
+    // -----------------------------------------------------
+
+    await transaction.requestHistory.create({
+      data: {
+        requestId: request.id,
+        actorId: officerId,
+        action: "ASSIGNED",
+        oldValue: officerId,
+        newValue: departmentHead.id,
+        description: `Request assigned to Department Head ${departmentHead.firstName} ${departmentHead.lastName} as part of escalation.`,
+      },
+    });
+
+    // -----------------------------------------------------
+    // Record escalation history
+    // -----------------------------------------------------
+
+    await transaction.requestHistory.create({
+      data: {
+        requestId: request.id,
+        actorId: officerId,
+        action: "ESCALATED",
+        oldValue: "IN_PROGRESS",
+        newValue: "ESCALATED",
+        description: `Request escalated to ${departmentHead.firstName} ${departmentHead.lastName}. Reason: ${reason}.`,
+      },
+    });
+
+    // -----------------------------------------------------
+    // Notify Department Head
+    // -----------------------------------------------------
+    await createNotification({
+      userId: departmentHead.id,
+      requestId: request.id,
+      type: "REQUEST_ESCALATED",
+      channel: "IN_APP",
+      title: "Request Escalated",
+      message:
+        `Request ${request.ticketNumber} has been escalated to you by ` +
+        `${departmentOfficer.firstName} ${departmentOfficer.lastName}. ` +
+        `Reason: ${reason}.`,
+      db: transaction,
+    });
+    return {
+      updatedRequest,
+      requestEscalation,
+      departmentHeadAssignment,
+    };
+  });
 
   // ---------------------------------------------------------
   // 8. Return useful information

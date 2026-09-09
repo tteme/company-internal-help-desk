@@ -1,5 +1,4 @@
 import express from "express";
-
 import {
   createRequestController,
   getOfficerRequestsController,
@@ -10,14 +9,13 @@ import {
   confirmOrRejectRequestController,
   escalateRequestController,
   getMyRequestsController,
+  rateRequestController,
 } from "../controllers/request.controller.js";
-
 import { authenticate } from "../middlewares/auth.middleware.js";
 import {
   requirePermission,
   requireRequestConfirmationPermission,
 } from "../middlewares/permission.middleware.js";
-
 import {
   createRequestValidator,
   updateRequestStatusValidator,
@@ -26,8 +24,8 @@ import {
   requestConfirmationValidator,
   escalateRequestValidator,
   requestIdValidator,
+  requestRatingValidator,
 } from "../validators/request.validator.js";
-
 import { validate } from "../middlewares/validation.middleware.js";
 
 const router = express.Router();
@@ -87,7 +85,7 @@ router.patch(
 
 router.patch(
   "/:id/confirmation",
-  authenticate, 
+  authenticate,
   requestConfirmationValidator,
   requestIdValidator,
   validate,
@@ -105,7 +103,15 @@ router.post(
   escalateRequestController,
 );
 
-
+router.post(
+  "/:id/rating",
+  authenticate,
+  requirePermission("request.rate"),
+  requestRatingValidator,
+  requestIdValidator,
+  validate,
+  rateRequestController,
+);
 router.get(
   "/:id",
   authenticate,

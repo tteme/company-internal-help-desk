@@ -83,3 +83,17 @@ export const escalateRequestValidator = [
 export const requestIdValidator = [
   param("id").isUUID().withMessage("Request ID must be a valid UUID."),
 ];
+export const requestRatingValidator = [
+  body("rating")
+    .notEmpty()
+    .withMessage("Rating is required.")
+    .bail()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be an integer between 1 and 5."),
+
+  body("comment")
+    .optional()
+    .trim()
+    .isLength({ max: 5000 })
+    .withMessage("Comment must not exceed 5000 characters."),
+];

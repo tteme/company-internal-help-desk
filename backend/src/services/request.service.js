@@ -1598,3 +1598,55 @@ export const escalateRequest = async ({
     },
   };
 };
+
+// ============================================================
+// RATE REQUEST
+// ============================================================
+
+export const rateRequest = async (requestId, employeeId, rating, comment) => {
+  // 1. Find the request
+  const request = await prisma.request.findUnique({
+    where: {
+      id: requestId,
+    },
+  });
+
+  // 2. Verify that the request exists
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  // 3. Verify that the employee is the request creator
+  if (request.creatorId !== employeeId) {
+    throw new Error("You can only rate your own requests.");
+  }
+
+  // 4. Verify that the request is closed
+  if (request.status !== "CLOSED") {
+    throw new Error("You can only rate a closed request.");
+  }
+
+  // 5. Verify that the request has not already been rated
+  const existingRating = await prisma.requestRating.findUnique({
+    where: {
+      requestId,
+    },
+  });
+
+  if (existingRating) {
+    throw new Error("This request has already been rated.");
+  }
+
+  // 6. Create the rating
+  const requestRating = await prisma.requestRating.create({
+    data: {
+      requestId,
+      employeeId,
+      rating,
+      comment: comment || null,
+    },
+  });
+
+  // 7. Return the created rating
+  return requestRating;
+};

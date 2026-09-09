@@ -234,8 +234,8 @@ model User {
 
   histories RequestHistory[]
 
-  notifications Notification[]
-
+  notifications    Notification[]
+  givenRatings     RequestRating[]    @relation("RatingEmployee")
   authoredArticles KnowledgeArticle[] @relation("ArticleAuthor")
 
   articleViews KnowledgeArticleView[]
@@ -506,9 +506,9 @@ model Request {
   histories RequestHistory[]
 
   notifications Notification[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  rating        RequestRating?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([creatorId])
   @@index([assigneeId])
@@ -690,6 +690,31 @@ model RequestHistory {
   @@index([requestId])
   @@index([actorId])
   @@index([action])
+}
+
+// ============================================================
+// REQUEST RATING
+// ============================================================
+
+model RequestRating {
+  id String @id @default(uuid())
+
+  requestId  String
+  employeeId String
+
+  rating  Int
+  comment String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  employee User @relation("RatingEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([requestId])
+  @@index([employeeId])
+  @@index([rating])
 }
 
 // ============================================================

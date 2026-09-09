@@ -6,7 +6,9 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import requestRoutes from "./routes/request.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
-
+import departmentRoutes from "./routes/department.routes.js";
+import branchRoutes from "./routes/branch.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
 const app = express();
 
 // Security
@@ -23,7 +25,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/departments", departmentRoutes);
+app.use("/api/branches", branchRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

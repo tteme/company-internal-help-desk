@@ -2,6 +2,7 @@ import {
   createRequest,
   getOfficerRequests,
   getRequestById,
+  getRequestsByRole,
   startRequest,
   addRequestComment,
   resolveRequest,
@@ -252,7 +253,54 @@ export const escalateRequestController = async (req, res) => {
     });
   }
 };
+/**
+ * Get requests according to the authenticated user's role.
+ */
+export const getRequestsController = async (req, res) => {
+  try {
+    // ---------------------------------------------------------
+    // 1. Get authenticated user's information
+    // ---------------------------------------------------------
 
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const departmentId = req.user.departmentId;
+
+    // ---------------------------------------------------------
+    // 2. Get requests according to user's role
+    // ---------------------------------------------------------
+
+    const requests = await getRequestsByRole({
+      userId,
+      userRole,
+      departmentId,
+    });
+
+    // ---------------------------------------------------------
+    // 3. Return requests
+    // ---------------------------------------------------------
+
+    return res.status(200).json({
+      success: true,
+      message: "Requests retrieved successfully.",
+      data: requests,
+    });
+  } catch (error) {
+    console.error("Get requests error:", error);
+
+    if (error.message === "You are not authorized to view requests.") {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve requests.",
+    });
+  }
+};
 /**
  * Get all requests created by the authenticated employee.
  */

@@ -434,14 +434,140 @@ export const getMyRequests = async (userId) => {
 
   return requests;
 };
+/**
+ * Get requests according to the authenticated user's role.
+ *
+ * Access scope:
+ * - SYSTEM_ADMINISTRATOR → all requests
+ * - ADMIN → all requests
+ * - DEPARTMENT_HEAD → requests belonging to their department
+ * - DEPARTMENT_OFFICER → requests currently assigned to them
+ * - EMPLOYEE → requests created by them
+ *
+ * The user's ID and department come from the authenticated
+ * user object, not from request query parameters.
+ */
+export const getRequestsByRole = async ({ userId, userRole, departmentId }) => {
+  // ---------------------------------------------------------
+  // 1. Determine request access scope
+  // ---------------------------------------------------------
 
+  let where = {};
+
+  if (userRole === "SYSTEM_ADMINISTRATOR" || userRole === "ADMIN") {
+    // System Administrator and Admin can see all requests.
+    where = {};
+  } else if (userRole === "DEPARTMENT_HEAD") {
+    // Department Head can see requests belonging
+    // to their own department.
+    where = {
+      departmentId,
+    };
+  } else if (userRole === "DEPARTMENT_OFFICER") {
+    // Department Officer can see requests currently
+    // assigned to them.
+    where = {
+      assigneeId: userId,
+    };
+  } else if (userRole === "EMPLOYEE") {
+    // Employee can see only requests they created.
+    where = {
+      creatorId: userId,
+    };
+  } else {
+    throw new Error("You are not authorized to view requests.");
+  }
+
+  // ---------------------------------------------------------
+  // 2. Retrieve requests
+  // ---------------------------------------------------------
+
+  const requests = await prisma.request.findMany({
+    where,
+
+    orderBy: {
+      createdAt: "desc",
+    },
+
+    include: {
+      category: true,
+
+      department: true,
+
+      creator: {
+        select: {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          branch: true,
+        },
+      },
+
+      assignee: {
+        select: {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+          availability: true,
+        },
+      },
+
+      sla: {
+        include: {
+          slaPolicy: true,
+        },
+      },
+
+      escalations: {
+        orderBy: {
+          escalatedAt: "desc",
+        },
+
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+
+          toUser: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // ---------------------------------------------------------
+  // 3. Return requests
+  // ---------------------------------------------------------
+
+  return requests;
+};
 /**
  * Get a single request by ID.
  *
  * Access is allowed for:
- * - The employee who created the request
- * - The Department Officer currently assigned to the request
- * - The Department Head currently assigned to the request
+ * - SYSTEM_ADMINISTRATOR → all requests
+ * - ADMIN → all requests
+ * - DEPARTMENT_HEAD → requests in their department
+ * - DEPARTMENT_OFFICER → requests currently assigned to them
+ * - EMPLOYEE → requests created by them
  *
  * Department Head escalation behavior:
  * - Head views the escalated request
@@ -449,6 +575,12 @@ export const getMyRequests = async (userId) => {
  * - Request ESCALATED becomes IN_PROGRESS
  * - Head remains assigned
  * - Head assignment.firstViewedAt is recorded
+ *
+ * Important:
+ * - Admin/System Administrator viewing a request does NOT affect
+ *   firstViewedAt.
+ * - Department Head viewing another request in their department
+ *   does NOT affect firstViewedAt unless they are the current assignee.
  */
 export const getRequestById = async ({ requestId, userId, userRole }) => {
   const request = await prisma.request.findUnique({
@@ -580,7 +712,7 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   }
 
   // ---------------------------------------------------------
-  // 1. Authorization
+  // 1. Determine user's access scope
   // ---------------------------------------------------------
 
   const isRequestCreator = request.creatorId === userId;
@@ -591,6 +723,49 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   const isCurrentHead =
     userRole === "DEPARTMENT_HEAD" && request.assigneeId === userId;
 
+  const isPrivilegedUser =
+    userRole === "ADMIN" || userRole === "SYSTEM_ADMINISTRATOR";
+
+  // ---------------------------------------------------------
+  // 2. Check Department Head department access
+  // ---------------------------------------------------------
+  //
+  // A Department Head can view any request belonging to
+  // their own department, even when they are not the
+  // current assignee.
+  //
+  // We get the department from the authenticated user in
+  // the database instead of trusting a request parameter.
+  // ---------------------------------------------------------
+
+  let isSameDepartmentHead = false;
+
+  if (userRole === "DEPARTMENT_HEAD") {
+    const departmentHead = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        role: "DEPARTMENT_HEAD",
+        status: "ACTIVE",
+        isActive: true,
+      },
+
+      select: {
+        departmentId: true,
+      },
+    });
+
+    if (
+      departmentHead &&
+      departmentHead.departmentId === request.departmentId
+    ) {
+      isSameDepartmentHead = true;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 3. Find pending escalation assigned to this user
+  // ---------------------------------------------------------
+
   const pendingEscalation = request.escalations.find(
     (escalation) =>
       escalation.escalatedToId === userId && escalation.status === "PENDING",
@@ -599,10 +774,15 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   const isPendingEscalationHead =
     userRole === "DEPARTMENT_HEAD" && pendingEscalation !== undefined;
 
+  // ---------------------------------------------------------
+  // 4. Determine final authorization
+  // ---------------------------------------------------------
+
   const isAuthorized =
+    isPrivilegedUser ||
     isRequestCreator ||
     isCurrentOfficer ||
-    isCurrentHead ||
+    isSameDepartmentHead ||
     isPendingEscalationHead;
 
   if (!isAuthorized) {
@@ -610,7 +790,7 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   }
 
   // ---------------------------------------------------------
-  // 2. Find this user's current assignment
+  // 5. Find this user's current assignment
   // ---------------------------------------------------------
 
   let currentAssignment = request.assignments.find(
@@ -619,7 +799,17 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   );
 
   // ---------------------------------------------------------
-  // 3. Department Head views pending escalation
+  // 6. Department Head views pending escalation
+  // ---------------------------------------------------------
+  //
+  // This special behavior only happens when:
+  //
+  // - The user is the Department Head
+  // - There is a PENDING escalation for them
+  // - They are the current assignee
+  //
+  // A Department Head simply viewing another request in
+  // their department will NOT trigger this behavior.
   // ---------------------------------------------------------
 
   if (isPendingEscalationHead) {
@@ -684,15 +874,16 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
       // PENDING → ACCEPTED
       // ---------------------------------------------------
 
-      const updatedEscalation = await transaction.requestEscalation.update({
-        where: {
-          id: pendingEscalation.id,
-        },
+      const updatedEscalation =
+        await transaction.requestEscalation.update({
+          where: {
+            id: pendingEscalation.id,
+          },
 
-        data: {
-          status: "ACCEPTED",
-        },
-      });
+          data: {
+            status: "ACCEPTED",
+          },
+        });
 
       // ---------------------------------------------------
       // Record Head's first view
@@ -742,20 +933,25 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
 
     pendingEscalation.status = result.updatedEscalation.status;
 
-    currentAssignment.firstViewedAt = result.updatedAssignment.firstViewedAt;
+    currentAssignment.firstViewedAt =
+      result.updatedAssignment.firstViewedAt;
 
     return request;
   }
 
   // ---------------------------------------------------------
-  // 4. Normal current-assignee first view
+  // 7. Normal current-assignee first view
   //
-  // Applies to:
-  // - Department Officer
-  // - Department Head
+  // Applies only to:
+  // - Department Officer currently assigned
+  // - Department Head currently assigned
   //
-  // Employee viewing their own request does not create
-  // an assignment firstViewedAt.
+  // Does NOT apply to:
+  // - Employee
+  // - Admin
+  // - System Administrator
+  // - Department Head merely viewing another request
+  //   in their department
   // ---------------------------------------------------------
 
   const isSupportAssignee = isCurrentOfficer || isCurrentHead;
@@ -781,12 +977,11 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   }
 
   // ---------------------------------------------------------
-  // 5. Return request
+  // 8. Return request
   // ---------------------------------------------------------
 
   return request;
 };
-
 /**
  * Start working on a request.
  *

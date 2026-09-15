@@ -661,16 +661,54 @@ const permissions = [
   { name: "branch.delete", description: "Delete branches." },
 
   // Categories
-  { name: "category.create", description: "Create request categories." },
-  { name: "category.view", description: "View request categories." },
-  { name: "category.update", description: "Update request categories." },
-  { name: "category.delete", description: "Delete request categories." },
+  {
+    name: "category.create",
+    description: "Create request categories.",
+  },
+  {
+    name: "category.view",
+    description: "View request categories.",
+  },
+  {
+    name: "category.update",
+    description: "Update request categories.",
+  },
+  {
+    name: "category.delete",
+    description: "Delete request categories.",
+  },
+
+  // Category Keywords
+  {
+    name: "category.keyword.create",
+    description: "Create keywords for request categories.",
+  },
+  {
+    name: "category.keyword.view",
+    description: "View keywords assigned to request categories.",
+  },
+  {
+    name: "category.keyword.update",
+    description: "Update request category keywords.",
+  },
+  {
+    name: "category.keyword.delete",
+    description: "Deactivate request category keywords.",
+  },
 
   // SLA
   { name: "sla.create", description: "Create SLA policies." },
   { name: "sla.view", description: "View SLA policies." },
   { name: "sla.update", description: "Update SLA policies." },
   { name: "sla.delete", description: "Delete SLA policies." },
+  {
+    name: "business_hours.view",
+    description: "View business hours configuration.",
+  },
+  {
+    name: "business_hours.update",
+    description: "Update business hours configuration.",
+  },
 
   // Knowledge Base
   {
@@ -773,10 +811,17 @@ const rolePermissions = {
     "category.update",
     "category.delete",
 
+    "category.keyword.create",
+    "category.keyword.view",
+    "category.keyword.update",
+    "category.keyword.delete",
+
     "sla.create",
     "sla.view",
     "sla.update",
     "sla.delete",
+    "business_hours.view",
+    "business_hours.update",
 
     "knowledge.create",
     "knowledge.view",
@@ -814,10 +859,17 @@ const rolePermissions = {
     "category.update",
     "category.delete",
 
+    "category.keyword.create",
+    "category.keyword.view",
+    "category.keyword.update",
+    "category.keyword.delete",
+
     "sla.create",
     "sla.view",
     "sla.update",
     "sla.delete",
+    "business_hours.view",
+    "business_hours.update",
 
     "knowledge.create",
     "knowledge.view",
@@ -833,7 +885,6 @@ const rolePermissions = {
     "permission.manage",
   ],
 };
-
 
 // ============================================================
 // MAIN

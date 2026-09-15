@@ -3,6 +3,67 @@ import prisma from "../config/database.js";
 import { hashPassword } from "../utils/password.js";
 import { sendActivationEmail } from "./email.service.js";
 
+// ============================================================
+// DEVELOPMENT TESTING
+// Generate a fresh activation token for local testing.
+// This must never be available in production.
+// ============================================================
+export const generateDevelopmentActivationToken = async (userId) => {
+  // 1. Make sure this helper is only available in development.
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error(
+      "Development activation is only available in development mode.",
+    );
+  }
+
+  // 2. Find the pending user.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  // 3. Only pending accounts can be activated.
+  if (user.status !== "PENDING" || user.isActive) {
+    throw new Error("Only pending user accounts can be activated.");
+  }
+
+  // 4. Generate a new raw activation token.
+  const rawToken = crypto.randomBytes(32).toString("hex");
+
+  // 5. Hash the token before storing it in the database.
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
+
+  // 6. Give the token a fresh 24-hour expiration time.
+  const activationExpires = new Date(
+    Date.now() + 24 * 60 * 60 * 1000,
+  );
+
+  // 7. Store only the hashed token.
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      activationToken: hashedToken,
+      activationExpires,
+    },
+  });
+
+  // 8. Return the raw token only for local development testing.
+  return {
+    userId: user.id,
+    email: user.email,
+    activationToken: rawToken,
+    activationExpires,
+  };
+};
+// ============================================================
+// CREATE USERS
+// ============================================================
 export const createUser = async ({
   employeeId,
   firstName,
@@ -71,20 +132,71 @@ export const createUser = async ({
     throw new Error("Email address already exists.");
   }
 
-  // Validate role-specific requirements
-  if (
-    role === "EMPLOYEE" ||
-    role === "DEPARTMENT_OFFICER" ||
-    role === "DEPARTMENT_HEAD"
-  ) {
-    if (!branchId) {
-      throw new Error("Branch is required for this user role.");
+  // ============================================================
+  // 3. VALIDATE BRANCH AND DEPARTMENT REQUIREMENTS
+  // ============================================================
+
+  const branchRequiredRoles = [
+    "EMPLOYEE",
+    "DEPARTMENT_OFFICER",
+    "DEPARTMENT_HEAD",
+  ];
+
+  const departmentRequiredRoles = ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"];
+
+  // ------------------------------------------------------------
+  // 3.1 Validate branch requirement
+  // ------------------------------------------------------------
+
+  if (branchRequiredRoles.includes(role) && !branchId) {
+    throw new Error("Branch is required for this user role.");
+  }
+
+  // ------------------------------------------------------------
+  // 3.2 Validate department requirement
+  // ------------------------------------------------------------
+
+  if (departmentRequiredRoles.includes(role) && !departmentId) {
+    throw new Error("Department is required for this user role.");
+  }
+
+  // ------------------------------------------------------------
+  // 3.3 Verify branch exists and is active
+  // ------------------------------------------------------------
+
+  if (branchRequiredRoles.includes(role)) {
+    const branch = await prisma.branch.findUnique({
+      where: {
+        id: branchId,
+      },
+    });
+
+    if (!branch) {
+      throw new Error("Branch not found.");
+    }
+
+    if (!branch.isActive) {
+      throw new Error("Cannot assign user to an inactive branch.");
     }
   }
 
-  if (role === "DEPARTMENT_OFFICER" || role === "DEPARTMENT_HEAD") {
-    if (!departmentId) {
-      throw new Error("Department is required for this user role.");
+  // ------------------------------------------------------------
+  // 3.4 Verify department exists and is active
+  // ------------------------------------------------------------
+
+  if (departmentRequiredRoles.includes(role)) {
+    const department = await prisma.department.findUnique({
+      where: {
+        id: departmentId,
+      },
+    });
+
+    if (!department) {
+      throw new Error("Department not found.");
+    }
+
+    if (!department.isActive) {
+      throw new Error("Cannot assign user to an inactive department.");
     }
   }
 
@@ -168,7 +280,7 @@ export const createUser = async ({
     activationExpires: user.activationExpires,
     createdAt: user.createdAt,
   };
-};;
+};
 export const activateUser = async (token, password) => {
   // Hash the token received from the activation link
   const activationTokenHash = crypto
@@ -231,6 +343,9 @@ export const activateUser = async (token, password) => {
 
   return activatedUser;
 };
+// ============================================================
+// GET ALL USERS
+// ============================================================
 export const getUsers = async () => {
   const users = await prisma.user.findMany({
     select: {
@@ -270,7 +385,9 @@ export const getUsers = async () => {
 
   return users;
 };
-
+// ============================================================
+// GET USER BY ID
+// ============================================================
 export const getUserById = async (id) => {
   const user = await prisma.user.findUnique({
     where: {
@@ -314,7 +431,9 @@ export const getUserById = async (id) => {
 
   return user;
 };
-
+// ============================================================
+// UPDATE USER
+// ============================================================
 
 export const updateUser = async (id, data) => {
   // ============================================================
@@ -358,13 +477,39 @@ export const updateUser = async (id, data) => {
     "DEPARTMENT_HEAD",
   ];
 
+  const privilegedRoles = ["ADMIN", "SYSTEM_ADMINISTRATOR"];
+
+  // ------------------------------------------------------------
+  // 3.1 ADMIN AUTHORITY
+  // ------------------------------------------------------------
+
   if (updatedByRole === "ADMIN") {
+    // Admin cannot modify privileged accounts.
+    if (privilegedRoles.includes(existingUser.role)) {
+      throw new Error(
+        "Admins cannot modify Admin or System Administrator accounts.",
+      );
+    }
+
+    // Admin can only manage operational roles.
     if (!adminAllowedRoles.includes(newRole)) {
       throw new Error(
         "Admins cannot assign Admin or System Administrator roles.",
       );
     }
-  } else if (updatedByRole !== "SYSTEM_ADMINISTRATOR") {
+  }
+
+  // ------------------------------------------------------------
+  // 3.2 SYSTEM ADMINISTRATOR AUTHORITY
+  // ------------------------------------------------------------
+  else if (updatedByRole === "SYSTEM_ADMINISTRATOR") {
+    // System Administrator can manage all user roles.
+  }
+
+  // ------------------------------------------------------------
+  // 3.3 OTHER ROLES
+  // ------------------------------------------------------------
+  else {
     throw new Error("You are not authorized to update user accounts.");
   }
 
@@ -383,9 +528,23 @@ export const updateUser = async (id, data) => {
       throw new Error("Email is already in use.");
     }
   }
-
   // ============================================================
-  // 5. VALIDATE ROLE
+  // 5. CHECK EMPLOYEE ID UNIQUENESS
+  // ============================================================
+
+  if (employeeId && employeeId !== existingUser.employeeId) {
+    const existingEmployeeIdUser = await prisma.user.findUnique({
+      where: {
+        employeeId,
+      },
+    });
+
+    if (existingEmployeeIdUser && existingEmployeeIdUser.id !== id) {
+      throw new Error("Employee ID already exists.");
+    }
+  }
+  // ============================================================
+  // 6. VALIDATE ROLE
   // ============================================================
 
   const roleRecord = await prisma.role.findUnique({
@@ -399,7 +558,7 @@ export const updateUser = async (id, data) => {
   }
 
   // ============================================================
-  // 6. VALIDATE BRANCH REQUIREMENTS
+  // 7. VALIDATE BRANCH REQUIREMENTS
   // ============================================================
 
   const branchRequiredRoles = [
@@ -408,36 +567,98 @@ export const updateUser = async (id, data) => {
     "DEPARTMENT_HEAD",
   ];
 
-  if (branchRequiredRoles.includes(newRole) && !branchId) {
+  // ------------------------------------------------------------
+  // 7.1 Determine the final branch
+  // ------------------------------------------------------------
+
+  // If branchId is provided, use the new branch.
+  // Otherwise, keep the user's existing branch.
+  const finalBranchId = branchRequiredRoles.includes(newRole)
+    ? branchId !== undefined
+      ? branchId
+      : existingUser.branchId
+    : null;
+
+  // ------------------------------------------------------------
+  // 7.2 Validate branch requirement
+  // ------------------------------------------------------------
+
+  if (branchRequiredRoles.includes(newRole) && !finalBranchId) {
     throw new Error("Branch is required for this role.");
   }
 
-  // ADMIN and SYSTEM_ADMINISTRATOR do not belong to a branch.
-  const finalBranchId = branchRequiredRoles.includes(newRole) ? branchId : null;
+  // ------------------------------------------------------------
+  // 7.3 Verify branch exists and is active
+  // ------------------------------------------------------------
+
+  if (branchRequiredRoles.includes(newRole)) {
+    const branch = await prisma.branch.findUnique({
+      where: {
+        id: finalBranchId,
+      },
+    });
+
+    if (!branch) {
+      throw new Error("Branch not found.");
+    }
+
+    if (!branch.isActive) {
+      throw new Error("Cannot assign user to an inactive branch.");
+    }
+  }
 
   // ============================================================
-  // 7. VALIDATE DEPARTMENT REQUIREMENTS
+  // 8. VALIDATE DEPARTMENT REQUIREMENTS
   // ============================================================
 
   const departmentRequiredRoles = ["DEPARTMENT_OFFICER", "DEPARTMENT_HEAD"];
 
-  if (departmentRequiredRoles.includes(newRole) && !departmentId) {
+  // ------------------------------------------------------------
+  // 8.1 Determine the final department
+  // ------------------------------------------------------------
+
+  // If departmentId is provided, use the new department.
+  // Otherwise, keep the user's existing department.
+  const finalDepartmentId = departmentRequiredRoles.includes(newRole)
+    ? departmentId !== undefined
+      ? departmentId
+      : existingUser.departmentId
+    : null;
+
+  // ------------------------------------------------------------
+  // 8.2 Validate department requirement
+  // ------------------------------------------------------------
+
+  if (departmentRequiredRoles.includes(newRole) && !finalDepartmentId) {
     throw new Error("Department is required for this role.");
   }
 
-  // Employees, Admins and System Administrators do not belong
-  // to a department.
-  const finalDepartmentId = departmentRequiredRoles.includes(newRole)
-    ? departmentId
-    : null;
+  // ------------------------------------------------------------
+  // 8.3 Verify department exists and is active
+  // ------------------------------------------------------------
 
+  if (departmentRequiredRoles.includes(newRole)) {
+    const department = await prisma.department.findUnique({
+      where: {
+        id: finalDepartmentId,
+      },
+    });
+
+    if (!department) {
+      throw new Error("Department not found.");
+    }
+
+    if (!department.isActive) {
+      throw new Error("Cannot assign user to an inactive department.");
+    }
+  }
   // ============================================================
-  // 7. UPDATE USER AND ROLE ASSIGNMENT IN ONE TRANSACTION
+  // 9. UPDATE USER AND ROLE ASSIGNMENT IN ONE TRANSACTION
   // ============================================================
 
   const updatedUser = await prisma.$transaction(async (tx) => {
     // ----------------------------------------------------------
-    // 7.1 Update the User record
+    // 9.1 Update the User record
     // ----------------------------------------------------------
 
     const user = await tx.user.update({
@@ -473,7 +694,7 @@ export const updateUser = async (id, data) => {
     });
 
     // ----------------------------------------------------------
-    // 7.2 Keep UserRoleAssignment synchronized
+    // 9.2 Keep UserRoleAssignment synchronized
     // ----------------------------------------------------------
 
     // The system uses User.role as the user's single business role.
@@ -496,10 +717,116 @@ export const updateUser = async (id, data) => {
   });
 
   // ============================================================
-  // 8. RETURN UPDATED USER
+  // 10. RETURN UPDATED USER
   // ============================================================
 
   return updatedUser;
-};;
+};
 
+// ============================================================
+// DEACTIVATE USER ACCOUNT
+// ============================================================
+export const deactivateUser = async (id) => {
+  // ============================================================
+  // 1. FIND EXISTING USER
+  // ============================================================
 
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!existingUser) {
+    throw new Error("User not found.");
+  }
+
+  // ============================================================
+  // 2. CHECK WHETHER USER IS ALREADY INACTIVE
+  // ============================================================
+
+  if (!existingUser.isActive || existingUser.status !== "ACTIVE") {
+    throw new Error("User account is already inactive.");
+  }
+
+  // ============================================================
+  // 3. DEACTIVATE USER ACCOUNT
+  // ============================================================
+
+  const deactivatedUser = await prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "INACTIVE",
+      isActive: false,
+      availability: "UNAVAILABLE",
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      status: true,
+      availability: true,
+      emailVerified: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  // ============================================================
+  // 4. RETURN DEACTIVATED USER
+  // ============================================================
+
+  return deactivatedUser;
+};
+
+// ============================================================
+// REACTIVATE USER ACCOUNT
+// ============================================================
+
+export const reactivateUser = async (id) => {
+  // 1. FIND EXISTING USER
+  const existingUser = await prisma.user.findUnique({
+    where: { id },
+  });
+
+  if (!existingUser) {
+    throw new Error("User not found.");
+  }
+
+  // 2. CHECK WHETHER USER IS ALREADY ACTIVE
+  if (existingUser.isActive && existingUser.status === "ACTIVE") {
+    throw new Error("User account is already active.");
+  }
+
+  // 3. REACTIVATE USER ACCOUNT
+  const reactivatedUser = await prisma.user.update({
+    where: { id },
+    data: {
+      status: "ACTIVE",
+      isActive: true,
+      availability: "AVAILABLE",
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      status: true,
+      availability: true,
+      emailVerified: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return reactivatedUser;
+};

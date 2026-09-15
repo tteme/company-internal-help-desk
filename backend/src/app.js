@@ -9,6 +9,10 @@ import notificationRoutes from "./routes/notification.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
 import branchRoutes from "./routes/branch.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
+import categoryKeywordRoutes from "./routes/category-keyword.routes.js";
+import slaRoutes from "./routes/sla.routes.js";
+import businessHoursRoutes from "./routes/business-hours.routes.js";
+
 const app = express();
 
 // Security
@@ -28,6 +32,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api", categoryKeywordRoutes);
+app.use("/api/sla", slaRoutes);
+app.use("/api/business-hours", businessHoursRoutes);
+
 
 // Health check
 app.get("/api/health", (req, res) => {

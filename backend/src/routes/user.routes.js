@@ -5,6 +5,9 @@ import {
   getUserByIdController,
   updateUserController,
   activateUserController,
+  generateDevelopmentActivationTokenController,
+  deactivateUserController,
+  reactivateUserController,
 } from "../controllers/user.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -26,14 +29,6 @@ router.post(
   validate,
   createUserController,
 );
-router.get(
-  "/:id",
-  authenticate,
-  requirePermission("user.view"),
-  userIdValidator,
-  validate,
-  getUserByIdController,
-);
 
 router.post(
   "/activate",
@@ -41,7 +36,39 @@ router.post(
   validate,
   activateUserController,
 );
-
+router.get(
+  "/",
+  authenticate,
+  requirePermission("user.view"),
+  getUsersController,
+);
+// for local testing TO ACTIVE THE USER
+router.post(
+  "/:id/dev-activation",
+  authenticate,
+  requirePermission("user.update"),
+  userIdValidator,
+  validate,
+  generateDevelopmentActivationTokenController,
+);
+// DEACTIVATE USER ACCOUNTS
+router.patch(
+  "/:id/deactivate",
+  authenticate,
+  requirePermission("user.update"),
+  userIdValidator,
+  validate,
+  deactivateUserController,
+);
+//REACTIVATE USER ACCOUNTS
+router.patch(
+  "/:id/reactivate",
+  authenticate,
+  requirePermission("user.update"),
+  userIdValidator,
+  validate,
+  reactivateUserController,
+);
 router.get(
   "/:id",
   authenticate,
@@ -49,7 +76,6 @@ router.get(
   userIdValidator,
   getUserByIdController,
 );
-
 router.patch(
   "/:id",
   authenticate,

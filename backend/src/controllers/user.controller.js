@@ -4,8 +4,52 @@ import {
   getUserById,
   updateUser,
   activateUser,
+  generateDevelopmentActivationToken,
+  deactivateUser,
+  reactivateUser,
 } from "../services/user.service.js";
+// ============================================================
+// DEVELOPMENT TESTING
+// Generate activation token for local development.
+// ============================================================
+export const generateDevelopmentActivationTokenController = async (
+  req,
+  res,
+) => {
+  try {
+    const activationData = await generateDevelopmentActivationToken(
+      req.params.id,
+    );
 
+    return res.status(200).json({
+      success: true,
+      message: "Development activation token generated successfully.",
+      data: activationData,
+    });
+  } catch (error) {
+    console.error("Generate development activation token error:", error);
+
+    if (
+      error.message ===
+        "Development activation is only available in development mode." ||
+      error.message === "User not found." ||
+      error.message === "Only pending user accounts can be activated."
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate development activation token.",
+    });
+  }
+};
+// ============================================================
+// CREATE USERS
+// ============================================================
 export const createUserController = async (req, res) => {
   try {
     const user = await createUser({
@@ -27,6 +71,9 @@ export const createUserController = async (req, res) => {
     });
   }
 };
+// ============================================================
+// ACTIVATE USERS
+// ============================================================
 export const activateUserController = async (req, res) => {
   try {
     const { token, password } = req.body;
@@ -47,6 +94,9 @@ export const activateUserController = async (req, res) => {
     });
   }
 };
+// ============================================================
+// GET ALL USERS
+// ============================================================
 export const getUsersController = async (req, res) => {
   try {
     const users = await getUsers();
@@ -65,6 +115,9 @@ export const getUsersController = async (req, res) => {
     });
   }
 };
+// ============================================================
+// GET USER BY ID
+// ============================================================
 
 export const getUserByIdController = async (req, res) => {
   try {
@@ -91,7 +144,9 @@ export const getUserByIdController = async (req, res) => {
     });
   }
 };
-
+// ============================================================
+// UPDATE USER
+// ============================================================
 export const updateUserController = async (req, res) => {
   try {
     const user = await updateUser(req.params.id, {
@@ -117,6 +172,69 @@ export const updateUserController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// ============================================================
+// DEACTIVATE USER ACCOUNT
+// ============================================================
+export const deactivateUserController = async (req, res) => {
+  try {
+    const user = await deactivateUser(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: "User account deactivated successfully.",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Deactivate user error:", error);
+
+    if (
+      error.message === "User not found." ||
+      error.message === "User account is already inactive."
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to deactivate user account.",
+    });
+  }
+};
+// ============================================================
+// REACTIVATE USER ACCOUNTs
+// ============================================================
+export const reactivateUserController = async (req, res) => {
+  try {
+    const user = await reactivateUser(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: "User account reactivated successfully.",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Reactivate user error:", error);
+
+    if (
+      error.message === "User not found." ||
+      error.message === "User account is already active."
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reactivate user account.",
     });
   }
 };

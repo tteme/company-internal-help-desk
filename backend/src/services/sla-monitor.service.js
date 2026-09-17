@@ -245,13 +245,50 @@ const processSlaBreach = async (sla) => {
     }
 
     // ---------------------------------------------------------
-    // 5. If another escalation is already pending
+    // 5. If request is already with Department Head
+    // ---------------------------------------------------------
+
+    if (request.assignee?.role === "DEPARTMENT_HEAD") {
+      await createNotification({
+        db: tx,
+        userId: request.assignee.id,
+        requestId: request.id,
+        type: "SLA_BREACHED",
+        title: "SLA Breached",
+        message:
+          `Request ${request.ticketNumber} has breached its ` +
+          `resolution SLA while already assigned to you.`,
+      });
+
+      await tx.requestHistory.create({
+        data: {
+          requestId: request.id,
+          actorId: null,
+          action: "ESCALATED",
+          oldValue: request.status,
+          newValue: request.status,
+          description:
+            `Resolution SLA breached for request ${request.ticketNumber}. ` +
+            `The request was already assigned to a Department Head, ` +
+            `so no duplicate escalation or assignment was created.`,
+        },
+      });
+
+      return {
+        processed: true,
+        alreadyEscalated: true,
+        requestId: request.id,
+        ticketNumber: request.ticketNumber,
+      };
+    }
+
+    // ---------------------------------------------------------
+    // 6. If another escalation is already pending
     // ---------------------------------------------------------
 
     if (request.escalations.length > 0) {
       const existingEscalation = request.escalations[0];
 
-      // Notify the current Head about the breach.
       if (existingEscalation.escalatedToId) {
         await createNotification({
           db: tx,
@@ -288,13 +325,13 @@ const processSlaBreach = async (sla) => {
     }
 
     // ---------------------------------------------------------
-    // 6. Determine previous assignee
+    // 7. Determine previous assignee
     // ---------------------------------------------------------
 
     const previousAssigneeId = request.assigneeId;
 
     // ---------------------------------------------------------
-    // 7. Close current officer assignment
+    // 7.1. Close current officer assignment
     // ---------------------------------------------------------
 
     if (previousAssigneeId) {

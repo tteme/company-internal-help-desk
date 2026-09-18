@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -14,12 +15,18 @@ import slaRoutes from "./routes/sla.routes.js";
 import businessHoursRoutes from "./routes/business-hours.routes.js";
 
 const app = express();
+app.use(cookieParser());
 
 // Security
 app.use(helmet());
 
 // CORS
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 
 // Parse JSON request bodies
 app.use(express.json());

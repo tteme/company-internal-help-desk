@@ -444,10 +444,19 @@ export const getMyRequests = async (userId) => {
  * - DEPARTMENT_OFFICER → requests currently assigned to them
  * - EMPLOYEE → requests created by them
  *
- * The user's ID and department come from the authenticated
- * user object, not from request query parameters.
+ * Filtering and pagination are applied after the role-based
+ * access scope has been established.
  */
-export const getRequestsByRole = async ({ userId, userRole, departmentId }) => {
+export const getRequestsByRole = async ({
+  userId,
+  userRole,
+  departmentId,
+  page = 1,
+  limit = 20,
+  search = "",
+  status,
+  priority,
+}) => {
   // ---------------------------------------------------------
   // 1. Determine request access scope
   // ---------------------------------------------------------
@@ -479,7 +488,82 @@ export const getRequestsByRole = async ({ userId, userRole, departmentId }) => {
   }
 
   // ---------------------------------------------------------
-  // 2. Retrieve requests
+  // 2. Build filtering conditions
+  // ---------------------------------------------------------
+
+  const filters = [];
+
+  // Search ticket number, title, or description.
+  if (search.trim()) {
+    filters.push({
+      OR: [
+        {
+          ticketNumber: {
+            contains: search.trim(),
+            mode: "insensitive",
+          },
+        },
+        {
+          title: {
+            contains: search.trim(),
+            mode: "insensitive",
+          },
+        },
+        {
+          description: {
+            contains: search.trim(),
+            mode: "insensitive",
+          },
+        },
+      ],
+    });
+  }
+
+  // Filter by request status.
+  if (status) {
+    filters.push({
+      status,
+    });
+  }
+
+  // Filter by request priority.
+  if (priority) {
+    filters.push({
+      priority,
+    });
+  }
+
+  // ---------------------------------------------------------
+  // 3. Combine role scope with filters
+  // ---------------------------------------------------------
+
+  if (filters.length > 0) {
+    where = {
+      AND: [where, ...filters],
+    };
+  }
+
+  // ---------------------------------------------------------
+  // 4. Calculate pagination
+  // ---------------------------------------------------------
+
+  const skip = (page - 1) * limit;
+
+  // ---------------------------------------------------------
+  // 5. Count matching requests
+  //
+  // IMPORTANT:
+  // The count uses the SAME `where` condition as the actual
+  // request query. Therefore pagination metadata represents
+  // the filtered result set, not all requests.
+  // ---------------------------------------------------------
+
+  const total = await prisma.request.count({
+    where,
+  });
+
+  // ---------------------------------------------------------
+  // 6. Retrieve only the requested page
   // ---------------------------------------------------------
 
   const requests = await prisma.request.findMany({
@@ -488,6 +572,9 @@ export const getRequestsByRole = async ({ userId, userRole, departmentId }) => {
     orderBy: {
       createdAt: "desc",
     },
+
+    skip,
+    take: limit,
 
     include: {
       category: true,
@@ -554,11 +641,26 @@ export const getRequestsByRole = async ({ userId, userRole, departmentId }) => {
   });
 
   // ---------------------------------------------------------
-  // 3. Return requests
+  // 7. Calculate pagination metadata
   // ---------------------------------------------------------
 
-  return requests;
+  const totalPages = Math.ceil(total / limit);
+
+  // ---------------------------------------------------------
+  // 8. Return requests and pagination information
+  // ---------------------------------------------------------
+
+  return {
+    requests,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+  };
 };
+
 /**
  * Get a single request by ID.
  *

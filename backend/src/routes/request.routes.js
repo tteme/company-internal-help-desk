@@ -30,6 +30,7 @@ import {
   escalateRequestValidator,
   requestIdValidator,
   requestRatingValidator,
+  getRequestsQueryValidator,
 } from "../validators/request.validator.js";
 
 import { validate } from "../middlewares/validation.middleware.js";
@@ -66,6 +67,8 @@ router.get(
   "/",
   authenticate,
   requirePermission("request.view"),
+  getRequestsQueryValidator,
+  validate,
   getRequestsController,
 );
 

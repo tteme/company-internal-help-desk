@@ -1,4 +1,4 @@
-import { body, param } from "express-validator";
+import { body, param, query } from "express-validator";
 
 export const createRequestValidator = [
   body("title")
@@ -96,4 +96,43 @@ export const requestRatingValidator = [
     .trim()
     .isLength({ max: 5000 })
     .withMessage("Comment must not exceed 5000 characters."),
+];
+
+export const getRequestsQueryValidator = [
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be a positive integer."),
+
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Limit must be between 1 and 100."),
+
+  query("search")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Search must not exceed 100 characters."),
+
+  query("status")
+    .optional()
+    .isIn([
+      "OPEN",
+      "ASSIGNED",
+      "IN_PROGRESS",
+      "PENDING_EMPLOYEE",
+      "PENDING_INFORMATION",
+      "ESCALATED",
+      "RESOLVED",
+      "REOPENED",
+      "REJECTED",
+      "CLOSED",
+    ])
+    .withMessage("Invalid request status."),
+
+  query("priority")
+    .optional()
+    .isIn(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+    .withMessage("Invalid request priority."),
 ];

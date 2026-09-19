@@ -255,6 +255,12 @@ export const escalateRequestController = async (req, res) => {
 };
 /**
  * Get requests according to the authenticated user's role.
+ *
+ * Supports:
+ * - pagination
+ * - search
+ * - status filtering
+ * - priority filtering
  */
 export const getRequestsController = async (req, res) => {
   try {
@@ -267,23 +273,65 @@ export const getRequestsController = async (req, res) => {
     const departmentId = req.user.departmentId;
 
     // ---------------------------------------------------------
-    // 2. Get requests according to user's role
+    // 2. Read query parameters
     // ---------------------------------------------------------
 
-    const requests = await getRequestsByRole({
+    const page = Number.parseInt(req.query.page, 10) || 1;
+    const limit = Number.parseInt(req.query.limit, 10) || 20;
+
+    const search =
+      typeof req.query.search === "string" ? req.query.search : "";
+
+    const status =
+      typeof req.query.status === "string" ? req.query.status : undefined;
+
+    const priority =
+      typeof req.query.priority === "string"
+        ? req.query.priority
+        : undefined;
+
+    // ---------------------------------------------------------
+    // 3. Validate pagination values
+    // ---------------------------------------------------------
+
+    if (page < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Page must be greater than or equal to 1.",
+      });
+    }
+
+    if (limit < 1 || limit > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Limit must be between 1 and 100.",
+      });
+    }
+
+    // ---------------------------------------------------------
+    // 4. Get requests according to user's role
+    // ---------------------------------------------------------
+
+    const result = await getRequestsByRole({
       userId,
       userRole,
       departmentId,
+      page,
+      limit,
+      search,
+      status,
+      priority,
     });
 
     // ---------------------------------------------------------
-    // 3. Return requests
+    // 5. Return requests and pagination metadata
     // ---------------------------------------------------------
 
     return res.status(200).json({
       success: true,
       message: "Requests retrieved successfully.",
-      data: requests,
+      data: result.requests,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("Get requests error:", error);

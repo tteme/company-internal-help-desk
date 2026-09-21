@@ -26,5 +26,47 @@ async function getRequests({
 
   return apiRequest(`/requests?${params.toString()}`);
 }
+async function startRequest(requestId) {
+  return apiRequest(`/requests/${requestId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "IN_PROGRESS",
+    }),
+  });
+}
+async function resolveRequest(requestId, message) {
+  return apiRequest(`/requests/${requestId}/resolve`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      message,
+    }),
+  });
+}
 
-export { getRequests };
+async function confirmOrRejectRequest(requestId, decision, message = "") {
+  return apiRequest(`/requests/${requestId}/confirmation`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      decision,
+      message,
+    }),
+  });
+}
+
+async function rateRequest(requestId, rating, comment = "") {
+  return apiRequest(`/requests/${requestId}/rating`, {
+    method: "POST",
+    body: JSON.stringify({
+      rating,
+      comment,
+    }),
+  });
+}
+
+export {
+  getRequests,
+  startRequest,
+  resolveRequest,
+  confirmOrRejectRequest,
+  rateRequest,
+};

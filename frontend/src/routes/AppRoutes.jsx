@@ -6,6 +6,7 @@ import AppLayout from "../layouts/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import PublicRoute from "./PublicRoute";
 import Profile from "../pages/profile/Profile";
+import RequestDetails from "../pages/requests/RequestDetails";
 
 function AppRoutes() {
   return (
@@ -19,6 +20,7 @@ function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/requests" element={<Requests />} />
+            <Route path="/requests/:id" element={<RequestDetails />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
         </Route>

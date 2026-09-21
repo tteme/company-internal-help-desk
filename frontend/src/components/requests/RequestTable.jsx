@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import Badge from "../ui/Badge";
 import Card from "../ui/Card";
@@ -44,6 +44,19 @@ const priorityVariants = {
 };
 
 function RequestTable({ requests }) {
+  const navigate = useNavigate();
+
+  function handleRowClick(requestId) {
+    navigate(`/requests/${requestId}`);
+  }
+
+  function handleRowKeyDown(event, requestId) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleRowClick(requestId);
+    }
+  }
+
   return (
     <Card>
       {requests.length === 0 ? (
@@ -103,15 +116,16 @@ function RequestTable({ requests }) {
               {requests.map((request) => (
                 <tr
                   key={request.id}
-                  className="transition-colors hover:bg-surface-muted"
+                  onClick={() => handleRowClick(request.id)}
+                  onKeyDown={(event) => handleRowKeyDown(event, request.id)}
+                  tabIndex={0}
+                  className="cursor-pointer transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent"
+                  aria-label={`Open request ${request.ticketNumber}`}
                 >
                   <td className="whitespace-nowrap px-5 py-4">
-                    <Link
-                      to={`/requests/${request.id}`}
-                      className="font-medium text-accent hover:text-primary"
-                    >
+                    <span className="font-medium text-accent">
                       {request.ticketNumber}
-                    </Link>
+                    </span>
                   </td>
 
                   <td className="max-w-[280px] truncate px-5 py-4 text-text">

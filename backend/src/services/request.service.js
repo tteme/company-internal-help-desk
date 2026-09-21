@@ -2,6 +2,7 @@ import crypto from "crypto";
 import prisma from "../config/database.js";
 import { calculateResolutionSla } from "./sla-calculator.service.js";
 import { createNotification } from "./notification.service.js";
+import { getRequestHistoryMessage } from "../utils/requestHistoryMessage.js";
 
 /**
  * Determine the request category from the title and description.
@@ -831,14 +832,6 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   // ---------------------------------------------------------
   // 2. Check Department Head department access
   // ---------------------------------------------------------
-  //
-  // A Department Head can view any request belonging to
-  // their own department, even when they are not the
-  // current assignee.
-  //
-  // We get the department from the authenticated user in
-  // the database instead of trusting a request parameter.
-  // ---------------------------------------------------------
 
   let isSameDepartmentHead = false;
 
@@ -902,16 +895,6 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
 
   // ---------------------------------------------------------
   // 6. Department Head views pending escalation
-  // ---------------------------------------------------------
-  //
-  // This special behavior only happens when:
-  //
-  // - The user is the Department Head
-  // - There is a PENDING escalation for them
-  // - They are the current assignee
-  //
-  // A Department Head simply viewing another request in
-  // their department will NOT trigger this behavior.
   // ---------------------------------------------------------
 
   if (isPendingEscalationHead) {
@@ -1038,6 +1021,49 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
     currentAssignment.firstViewedAt =
       result.updatedAssignment.firstViewedAt;
 
+    // -------------------------------------------------------
+    // Re-fetch histories
+    //
+    // The Head acceptance history was created inside the
+    // transaction after the original request was loaded.
+    // Therefore, the original request.histories array does
+    // not contain that new history record.
+    // -------------------------------------------------------
+
+    request.histories = await prisma.requestHistory.findMany({
+      where: {
+        requestId: request.id,
+      },
+
+      orderBy: {
+        createdAt: "asc",
+      },
+
+      include: {
+        actor: {
+          select: {
+            id: true,
+            employeeId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    // -------------------------------------------------------
+    // Format activity history for the current viewer
+    // -------------------------------------------------------
+
+    request.histories = request.histories.map((history) => ({
+      ...history,
+      message: getRequestHistoryMessage(history, {
+        id: userId,
+        role: userRole,
+      }),
+    }));
+
     return request;
   }
 
@@ -1079,7 +1105,19 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   }
 
   // ---------------------------------------------------------
-  // 8. Return request
+  // 8. Format activity history for the current viewer
+  // ---------------------------------------------------------
+
+  request.histories = request.histories.map((history) => ({
+    ...history,
+    message: getRequestHistoryMessage(history, {
+      id: userId,
+      role: userRole,
+    }),
+  }));
+
+  // ---------------------------------------------------------
+  // 9. Return request
   // ---------------------------------------------------------
 
   return request;
@@ -1329,7 +1367,7 @@ export const resolveRequest = async ({ requestId, officerId, message }) => {
       },
 
       data: {
-        status: "RESOLVED",
+        status: "PENDING_EMPLOYEE",
         resolvedAt,
       },
     });
@@ -1364,10 +1402,12 @@ export const resolveRequest = async ({ requestId, officerId, message }) => {
       data: {
         requestId,
         actorId: officerId,
-        action: "RESOLVED",
+        action: "STATUS_CHANGED",
         oldValue: "IN_PROGRESS",
-        newValue: "RESOLVED",
-        description: resolverRole + " resolved the request.",
+        newValue: "PENDING_EMPLOYEE",
+        description:
+          resolverRole +
+          " resolved the request and submitted it for employee confirmation.",
       },
     });
 
@@ -1410,10 +1450,10 @@ export const resolveRequest = async ({ requestId, officerId, message }) => {
  * Business flow:
  *
  * RESOLVED
- *     
+ *
  * Employee reviews resolution
  *
- * Notify assignee                
+ * Notify assignee
  *
  * The current assignee does not change
  * when the employee rejects the resolution.
@@ -1463,7 +1503,7 @@ export const confirmOrRejectRequest = async ({
   // 3. Verify request status
   // ---------------------------------------------------------
 
-  if (request.status !== "RESOLVED") {
+  if (request.status !== "PENDING_EMPLOYEE") {
     throw new Error(
       "Request cannot be confirmed or rejected because its current status is " +
         request.status +
@@ -1517,7 +1557,7 @@ export const confirmOrRejectRequest = async ({
           requestId,
           actorId: employeeId,
           action: "CLOSED",
-          oldValue: "RESOLVED",
+          oldValue: "PENDING_EMPLOYEE",
           newValue: "CLOSED",
           description:
             "Employee confirmed the resolution and closed the request.",
@@ -1586,7 +1626,7 @@ export const confirmOrRejectRequest = async ({
         requestId,
         actorId: employeeId,
         action: "REOPENED",
-        oldValue: "RESOLVED",
+        oldValue: "PENDING_EMPLOYEE",
         newValue: "REOPENED",
         description:
           "Employee rejected the resolution and reopened the request.",

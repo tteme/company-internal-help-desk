@@ -10,6 +10,7 @@ import {
   BarChart3,
   ShieldCheck,
   Settings,
+  UserCircle,
 } from "lucide-react";
 
 export const navigation = {
@@ -26,6 +27,12 @@ export const navigation = {
       icon: ClipboardList,
       section: "Main",
     },
+    {
+      label: "Profile",
+      path: "/profile",
+      icon: UserCircle,
+      section: "Account",
+    },
   ],
 
   DEPARTMENT_OFFICER: [
@@ -36,10 +43,16 @@ export const navigation = {
       section: "Main",
     },
     {
-      label: "Requests",
+      label: "Assigned Requests",
       path: "/requests",
       icon: ClipboardList,
       section: "Main",
+    },
+    {
+      label: "Profile",
+      path: "/profile",
+      icon: UserCircle,
+      section: "Account",
     },
   ],
 
@@ -61,6 +74,12 @@ export const navigation = {
       path: "/escalations",
       icon: GitBranch,
       section: "Management",
+    },
+    {
+      label: "Profile",
+      path: "/profile",
+      icon: UserCircle,
+      section: "Account",
     },
   ],
 
@@ -119,6 +138,12 @@ export const navigation = {
       icon: BarChart3,
       section: "Reporting",
     },
+    {
+      label: "Profile",
+      path: "/profile",
+      icon: UserCircle,
+      section: "Account",
+    },
   ],
 
   SYSTEM_ADMINISTRATOR: [
@@ -157,6 +182,12 @@ export const navigation = {
       path: "/reports",
       icon: BarChart3,
       section: "Reporting",
+    },
+    {
+      label: "Profile",
+      path: "/profile",
+      icon: UserCircle,
+      section: "Account",
     },
   ],
 };

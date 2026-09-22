@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 import PageHeader from "../../components/ui/PageHeader";
 import Pagination from "../../components/ui/Pagination";
@@ -7,6 +9,14 @@ import RequestTable from "../../components/requests/RequestTable";
 import { getRequests } from "../../services/request.service";
 
 function Requests() {
+  const navigate = useNavigate();
+
+  const user = useSelector((state) => state.auth.user);
+  console.log("Current authenticated user:", user);
+  console.log("Current user role:", user?.role);
+  const canCreateRequest = user?.role === "EMPLOYEE";
+  console.log("Can create request:", canCreateRequest);
+
   const [requests, setRequests] = useState([]);
 
   const [search, setSearch] = useState("");
@@ -17,7 +27,7 @@ function Requests() {
 
   // Request parameters controlled by the frontend.
   const [page, setPage] = useState(1);
-  const [limit] = useState(2);
+  const [limit] = useState(20);
 
   // Pagination metadata returned by the backend.
   const [pagination, setPagination] = useState({
@@ -91,6 +101,18 @@ function Requests() {
         title="Requests"
         description="Manage and track help desk requests."
       />
+
+      {canCreateRequest && (
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={() => navigate("/requests/create")}
+            className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
+          >
+            Create Request
+          </button>
+        </div>
+      )}
 
       <div className="mt-6">
         <RequestFilters

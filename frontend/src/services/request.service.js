@@ -26,6 +26,15 @@ async function getRequests({
 
   return apiRequest(`/requests?${params.toString()}`);
 }
+async function createRequest(title, description) {
+  return apiRequest("/requests", {
+    method: "POST",
+    body: JSON.stringify({
+      title,
+      description,
+    }),
+  });
+}
 async function startRequest(requestId) {
   return apiRequest(`/requests/${requestId}/status`, {
     method: "PATCH",
@@ -65,6 +74,7 @@ async function rateRequest(requestId, rating, comment = "") {
 
 export {
   getRequests,
+  createRequest,
   startRequest,
   resolveRequest,
   confirmOrRejectRequest,

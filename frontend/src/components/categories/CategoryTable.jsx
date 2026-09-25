@@ -1,0 +1,165 @@
+import { Pencil, Power } from "lucide-react";
+
+function CategoryTable({ categories, onEdit, onManageKeywords, onDeactivate }) {
+  if (categories.length === 0) {
+    return (
+      <div className="px-6 py-10 text-center">
+        <p className="text-sm font-medium text-text">No categories found.</p>
+        <p className="mt-1 text-sm text-text-muted">
+          Try adjusting your search or create a new category.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1100px] text-left">
+        <thead className="border-b border-border bg-surface-muted">
+          <tr>
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Category
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Code
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Department
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Description
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Requests
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Articles
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Keywords
+            </th>
+
+            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Status
+            </th>
+
+            <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Actions
+            </th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-border">
+          {categories.map((category) => (
+            <tr
+              key={category.id}
+              className="transition-colors hover:bg-surface-muted/50"
+            >
+              <td className="px-5 py-4">
+                <p className="text-sm font-medium text-text">{category.name}</p>
+              </td>
+
+              <td className="px-5 py-4">
+                <span className="rounded-md bg-primary-light px-2 py-1 text-xs font-medium text-primary">
+                  {category.code}
+                </span>
+              </td>
+
+              <td className="px-5 py-4">
+                {category.department ? (
+                  <div>
+                    <p className="text-sm font-medium text-text">
+                      {category.department.name}
+                    </p>
+
+                    <span className="text-xs text-text-muted">
+                      {category.department.code}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-text-muted">—</span>
+                )}
+              </td>
+
+              <td className="px-5 py-4">
+                {category.description ? (
+                  <p className="max-w-xs truncate text-sm text-text-secondary">
+                    {category.description}
+                  </p>
+                ) : (
+                  <span className="text-sm text-text-muted">—</span>
+                )}
+              </td>
+
+              <td className="px-5 py-4 text-sm text-text-secondary">
+                {category._count?.requests ?? 0}
+              </td>
+
+              <td className="px-5 py-4 text-sm text-text-secondary">
+                {category._count?.articles ?? 0}
+              </td>
+
+              <td className="px-5 py-4 text-sm text-text-secondary">
+                {category._count?.keywords ?? 0}
+              </td>
+
+              <td className="px-5 py-4">
+                <span
+                  className={[
+                    "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
+                    category.isActive
+                      ? "bg-success-light text-success"
+                      : "bg-surface-muted text-text-muted",
+                  ].join(" ")}
+                >
+                  {category.isActive ? "Active" : "Inactive"}
+                </span>
+              </td>
+
+              <td className="px-5 py-4">
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(category)}
+                    aria-label={`Edit ${category.name}`}
+                    className="rounded-md p-2 text-text-muted transition-colors hover:bg-primary-light hover:text-primary"
+                  >
+                    <Pencil aria-hidden="true" className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onManageKeywords(category)}
+                    aria-label={`Manage keywords for ${category.name}`}
+                    className="rounded-md px-2.5 py-2 text-sm text-text-secondary transition-colors hover:bg-accent-light hover:text-accent"
+                  >
+                    Keywords
+                  </button>
+
+                  {category.isActive && (
+                    <button
+                      type="button"
+                      onClick={() => onDeactivate(category)}
+                      aria-label={`Deactivate ${category.name}`}
+                      className="rounded-md p-2 text-text-muted transition-colors hover:bg-danger-light hover:text-danger"
+                    >
+                      <Power aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default CategoryTable;

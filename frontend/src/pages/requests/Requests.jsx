@@ -12,10 +12,7 @@ function Requests() {
   const navigate = useNavigate();
 
   const user = useSelector((state) => state.auth.user);
-  console.log("Current authenticated user:", user);
-  console.log("Current user role:", user?.role);
   const canCreateRequest = user?.role === "EMPLOYEE";
-  console.log("Can create request:", canCreateRequest);
 
   const [requests, setRequests] = useState([]);
 
@@ -27,7 +24,7 @@ function Requests() {
 
   // Request parameters controlled by the frontend.
   const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  const [limit] = useState(10);
 
   // Pagination metadata returned by the backend.
   const [pagination, setPagination] = useState({

@@ -9,6 +9,13 @@ import PublicRoute from "./PublicRoute";
 import Profile from "../pages/profile/Profile";
 import RequestDetails from "../pages/requests/RequestDetails";
 import CreateRequest from "../pages/requests/CreateRequest";
+import Branches from "../pages/administration/Branches";
+import Departments from "../pages/administration/Departments";
+import Categories from "../pages/administration/Categories";
+import Users from "../pages/administration/Users";
+import SlaPolicies from "../pages/administration/SlaPolicies";
+import BusinessHours from "../pages/administration/BusinessHours";
+import Reports from "../pages/administration/Reports";
 
 function AppRoutes() {
   return (
@@ -22,6 +29,23 @@ function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/requests" element={<Requests />} />
+            <Route element={<RoleProtectedRoute allowedRoles={["ADMIN"]} />}>
+              <Route path="/branches" element={<Branches />} />
+              <Route path="/departments" element={<Departments />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/sla" element={<SlaPolicies />} />
+              <Route path="/business-hours" element={<BusinessHours />} />
+            </Route>
+            <Route
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={["ADMIN", "SYSTEM_ADMINISTRATOR"]}
+                />
+              }
+            >
+              <Route path="/reports" element={<Reports />} />
+            </Route>
             <Route element={<RoleProtectedRoute allowedRoles={["EMPLOYEE"]} />}>
               <Route path="/requests/create" element={<CreateRequest />} />
             </Route>

@@ -7,6 +7,7 @@ import {
   generateDevelopmentActivationToken,
   deactivateUser,
   reactivateUser,
+  updateUserAvailability,
 } from "../services/user.service.js";
 // ============================================================
 // DEVELOPMENT TESTING
@@ -52,10 +53,13 @@ export const generateDevelopmentActivationTokenController = async (
 // ============================================================
 export const createUserController = async (req, res) => {
   try {
+    console.log("➡️ Create user request started");
     const user = await createUser({
       ...req.body,
       createdByRole: req.user.role,
     });
+    console.log("✅ createUser service completed");
+    console.log("📤 Sending create user response");
 
     return res.status(201).json({
       success: true,
@@ -172,6 +176,50 @@ export const updateUserController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// ============================================================
+// UPDATE USER AVAILABILITY
+// ============================================================
+export const updateUserAvailabilityController = async (req, res) => {
+  try {
+    const user = await updateUserAvailability(
+      req.params.id,
+      req.body.availability,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "User availability updated successfully.",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Update user availability error:", error);
+
+    if (error.message === "User not found.") {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+        "Only department officers and department heads can have their availability changed." ||
+      error.message ===
+        "Only active user accounts can have their availability changed."
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update user availability.",
     });
   }
 };

@@ -34,7 +34,7 @@ const departments = [
   },
   {
     name: "Legal",
-    code: "LEGAL",
+    code: "LEG",
     description:
       "Handles legal, compliance, contractual, and legal advisory requests.",
   },
@@ -138,7 +138,7 @@ const categories = [
     code: "LEGAL-COMPLIANCE",
     description:
       "Legal advice, contracts, agreements, compliance, regulatory matters, legal interpretation, and contractual issues.",
-    departmentCode: "LEGAL",
+    departmentCode: "LEG",
   },
   {
     name: "Branch Operations",
@@ -477,7 +477,7 @@ const slaPolicies = [
   {
     name: "Legal Low Priority SLA",
     description: "SLA for low-priority Legal requests.",
-    departmentCode: "LEGAL",
+    departmentCode: "LEG",
     priority: "LOW",
     responseTimeMinutes: 240,
     resolutionTimeMinutes: 1440,
@@ -486,7 +486,7 @@ const slaPolicies = [
   {
     name: "Legal Medium Priority SLA",
     description: "SLA for medium-priority Legal requests.",
-    departmentCode: "LEGAL",
+    departmentCode: "LEG",
     priority: "MEDIUM",
     responseTimeMinutes: 120,
     resolutionTimeMinutes: 960,
@@ -495,7 +495,7 @@ const slaPolicies = [
   {
     name: "Legal High Priority SLA",
     description: "SLA for high-priority Legal requests.",
-    departmentCode: "LEGAL",
+    departmentCode: "LEG",
     priority: "HIGH",
     responseTimeMinutes: 60,
     resolutionTimeMinutes: 240,
@@ -504,7 +504,7 @@ const slaPolicies = [
   {
     name: "Legal Critical Priority SLA",
     description: "SLA for critical Legal requests.",
-    departmentCode: "LEGAL",
+    departmentCode: "LEG",
     priority: "CRITICAL",
     responseTimeMinutes: 30,
     resolutionTimeMinutes: 120,

@@ -722,7 +722,93 @@ export const updateUser = async (id, data) => {
 
   return updatedUser;
 };
+// ============================================================
+// UPDATE USER AVAILABILITY
+// ============================================================
+export const updateUserAvailability = async (id, availability) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      status: true,
+      availability: true,
+      isActive: true,
+      branch: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      department: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
 
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  // Availability is only relevant for users who can receive requests.
+  if (
+    user.role !== "DEPARTMENT_OFFICER" &&
+    user.role !== "DEPARTMENT_HEAD"
+  ) {
+    throw new Error(
+      "Only department officers and department heads can have their availability changed.",
+    );
+  }
+
+  // An inactive or pending account cannot become available.
+  if (user.status !== "ACTIVE" || !user.isActive) {
+    throw new Error(
+      "Only active user accounts can have their availability changed.",
+    );
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id },
+    data: {
+      availability,
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      status: true,
+      availability: true,
+      emailVerified: true,
+      isActive: true,
+      lastLoginAt: true,
+      branch: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      department: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      updatedAt: true,
+    },
+  });
+
+  return updatedUser;
+};
 // ============================================================
 // DEACTIVATE USER ACCOUNT
 // ============================================================

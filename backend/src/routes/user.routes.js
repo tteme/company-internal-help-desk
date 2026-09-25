@@ -8,6 +8,7 @@ import {
   generateDevelopmentActivationTokenController,
   deactivateUserController,
   reactivateUserController,
+  updateUserAvailabilityController,
 } from "../controllers/user.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -16,6 +17,7 @@ import {
   updateUserValidator,
   activateUserValidator,
   userIdValidator,
+  updateUserAvailabilityValidator,
 } from "../validators/user.validator.js";
 import { validate } from "../middlewares/validation.middleware.js";
 
@@ -41,6 +43,15 @@ router.get(
   authenticate,
   requirePermission("user.view"),
   getUsersController,
+);
+// UPDATE USER AVAILABILITY
+router.patch(
+  "/:id/availability",
+  authenticate,
+  requirePermission("user.update"),
+  updateUserAvailabilityValidator,
+  validate,
+  updateUserAvailabilityController,
 );
 // for local testing TO ACTIVE THE USER
 router.post(

@@ -110,6 +110,7 @@ export const updateUserValidator = [
     .isUUID()
     .withMessage("Department ID must be a valid UUID."),
 ];
+
 export const activateUserValidator = [
   body("token").trim().notEmpty().withMessage("Activation token is required."),
 
@@ -130,6 +131,17 @@ export const activateUserValidator = [
       return true;
     }),
 ];
+
 export const userIdValidator = [
   param("id").isUUID().withMessage("User ID must be a valid UUID."),
+];
+
+export const updateUserAvailabilityValidator = [
+  ...userIdValidator,
+
+  body("availability")
+    .notEmpty()
+    .withMessage("Availability is required.")
+    .isIn(["AVAILABLE", "UNAVAILABLE"])
+    .withMessage("Invalid availability status."),
 ];

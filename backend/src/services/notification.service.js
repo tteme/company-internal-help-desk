@@ -12,6 +12,12 @@ const VALID_NOTIFICATION_TYPES = [
   "REQUEST_CLOSED",
   "ACCOUNT_CREATED",
   "ACCOUNT_ACTIVATED",
+
+  "CLIENT_FEEDBACK_SUBMITTED",
+  "CLIENT_FEEDBACK_ASSIGNED",
+  "CLIENT_FEEDBACK_UPDATE",
+  "CLIENT_FEEDBACK_ADDRESSED",
+  
   "SYSTEM_NOTIFICATION",
 ];
 
@@ -20,6 +26,7 @@ const VALID_NOTIFICATION_CHANNELS = ["IN_APP", "EMAIL"];
 export const createNotification = async ({
   userId,
   requestId = null,
+  feedbackId = null,
   type,
   channel = "IN_APP",
   title,
@@ -50,6 +57,7 @@ export const createNotification = async ({
     data: {
       userId,
       requestId,
+      feedbackId,
       type,
       channel,
       status: channel === "IN_APP" ? "SENT" : "PENDING",

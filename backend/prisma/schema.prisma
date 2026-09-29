@@ -93,6 +93,14 @@ enum HistoryAction {
   ATTACHMENT_REMOVED
 }
 
+enum ClientFeedbackStatus {
+  PENDING_REVIEW
+  ASSIGNED
+  IN_REVIEW
+  ADDRESSED
+  DISMISSED
+}
+
 enum NotificationType {
   REQUEST_CREATED
   REQUEST_ASSIGNED
@@ -105,6 +113,12 @@ enum NotificationType {
   REQUEST_CLOSED
   ACCOUNT_CREATED
   ACCOUNT_ACTIVATED
+
+  CLIENT_FEEDBACK_SUBMITTED
+  CLIENT_FEEDBACK_ASSIGNED
+  CLIENT_FEEDBACK_UPDATE
+  CLIENT_FEEDBACK_ADDRESSED
+
   SYSTEM_NOTIFICATION
 }
 
@@ -174,6 +188,7 @@ model Department {
   slaPolicies     SlaPolicy[]
   escalationRules EscalationRule[]
   requests        Request[]
+  clientFeedbacks ClientFeedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -239,6 +254,11 @@ model User {
   authoredArticles KnowledgeArticle[] @relation("ArticleAuthor")
 
   articleViews KnowledgeArticleView[]
+
+  assignedClientFeedbacks    ClientFeedback[] @relation("FeedbackAssignee")
+  createdFeedbackAssignments ClientFeedback[] @relation("FeedbackAssigner")
+
+  clientFeedbackUpdates ClientFeedbackUpdate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -724,12 +744,15 @@ model RequestRating {
 model Notification {
   id String @id @default(uuid())
 
-  userId    String
-  requestId String?
+  userId     String
+  requestId  String?
+  feedbackId String?
 
   type    NotificationType
   channel NotificationChannel @default(IN_APP)
   status  NotificationStatus  @default(PENDING)
+
+  feedback ClientFeedback? @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
 
   title   String
   message String
@@ -747,6 +770,7 @@ model Notification {
   @@index([requestId])
   @@index([status])
   @@index([createdAt])
+  @@index([feedbackId])
 }
 
 // ============================================================
@@ -823,4 +847,77 @@ model CategoryKeyword {
   @@unique([categoryId, keyword])
   @@index([keyword])
   @@index([categoryId])
+}
+
+// ============================================================
+// MODEL CLIENT FEEDBACK
+// ============================================================
+model ClientFeedback {
+  id String @id @default(uuid())
+
+  referenceNumber String @unique
+
+  fullName    String
+  email       String
+  phoneNumber String
+  description String
+
+  status ClientFeedbackStatus @default(PENDING_REVIEW)
+
+  departmentId String?
+  assignedToId String?
+  assignedById String?
+
+  resolvedAt DateTime?
+  closedAt   DateTime?
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  assignedTo User? @relation("FeedbackAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  assignedBy User? @relation("FeedbackAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  updates ClientFeedbackUpdate[]
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([assignedToId])
+  @@index([assignedById])
+  @@index([createdAt])
+}
+
+// ============================================================
+// MODEL CLIENT FEEDBACK SEQUENCE
+// ============================================================
+model ClientFeedbackSequence {
+  id    Int @id
+  value Int @default(0)
+}
+// ============================================================
+// MODEL CLIENT FEEDBACK UPDATE
+// ============================================================
+
+model ClientFeedbackUpdate {
+  id String @id @default(uuid())
+
+  feedbackId String
+  userId     String
+
+  message String
+
+  feedback ClientFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([feedbackId])
+  @@index([userId])
+  @@index([createdAt])
 }

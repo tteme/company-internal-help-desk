@@ -40,9 +40,7 @@ export const generateDevelopmentActivationToken = async (userId) => {
     .digest("hex");
 
   // 6. Give the token a fresh 24-hour expiration time.
-  const activationExpires = new Date(
-    Date.now() + 24 * 60 * 60 * 1000,
-  );
+  const activationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   // 7. Store only the hashed token.
   await prisma.user.update({
@@ -758,10 +756,7 @@ export const updateUserAvailability = async (id, availability) => {
   }
 
   // Availability is only relevant for users who can receive requests.
-  if (
-    user.role !== "DEPARTMENT_OFFICER" &&
-    user.role !== "DEPARTMENT_HEAD"
-  ) {
+  if (user.role !== "DEPARTMENT_OFFICER" && user.role !== "DEPARTMENT_HEAD") {
     throw new Error(
       "Only department officers and department heads can have their availability changed.",
     );
@@ -876,23 +871,46 @@ export const deactivateUser = async (id) => {
 // ============================================================
 
 export const reactivateUser = async (id) => {
+  // ============================================================
   // 1. FIND EXISTING USER
+  // ============================================================
+
   const existingUser = await prisma.user.findUnique({
-    where: { id },
+    where: {
+      id,
+    },
   });
 
   if (!existingUser) {
     throw new Error("User not found.");
   }
 
-  // 2. CHECK WHETHER USER IS ALREADY ACTIVE
+  // ============================================================
+  // 2. PENDING USERS MUST COMPLETE ACTIVATION FIRST
+  // ============================================================
+
+  if (existingUser.status === "PENDING") {
+    throw new Error(
+      "Pending user accounts must be activated through the activation link.",
+    );
+  }
+
+  // ============================================================
+  // 3. CHECK WHETHER USER IS ALREADY ACTIVE
+  // ============================================================
+
   if (existingUser.isActive && existingUser.status === "ACTIVE") {
     throw new Error("User account is already active.");
   }
 
-  // 3. REACTIVATE USER ACCOUNT
+  // ============================================================
+  // 4. REACTIVATE USER ACCOUNT
+  // ============================================================
+
   const reactivatedUser = await prisma.user.update({
-    where: { id },
+    where: {
+      id,
+    },
     data: {
       status: "ACTIVE",
       isActive: true,
@@ -913,6 +931,10 @@ export const reactivateUser = async (id) => {
       updatedAt: true,
     },
   });
+
+  // ============================================================
+  // 5. RETURN REACTIVATED USER
+  // ============================================================
 
   return reactivatedUser;
 };

@@ -749,6 +749,38 @@ const permissions = [
     name: "permission.manage",
     description: "Manage permissions.",
   },
+  // ------------------------------------------------------------
+  // Client Feedback permissions
+  // ------------------------------------------------------------
+
+  {
+    name: "feedback.view",
+    description: "View client feedback.",
+  },
+  {
+    name: "feedback.assign",
+    description: "Assign client feedback to a department officer or head.",
+  },
+  {
+    name: "feedback.update",
+    description: "Update client feedback status.",
+  },
+  {
+    name: "feedback.add_update",
+    description: "Add internal updates to client feedback.",
+  },
+  {
+    name: "feedback.dismiss",
+    description: "Dismiss client feedback.",
+  },
+  {
+    name: "notification.view",
+    description: "View notifications.",
+  },
+  {
+    name: "notification.update",
+    description: "Update notification status.",
+  },
 ];
 
 // ============================================================
@@ -773,6 +805,13 @@ const rolePermissions = {
     "request.resolve",
     "request.escalate",
     "knowledge.view",
+
+    "feedback.view",
+    "feedback.update",
+    "feedback.add_update",
+
+    "notification.view",
+    "notification.update",
   ],
 
   DEPARTMENT_HEAD: [
@@ -785,6 +824,13 @@ const rolePermissions = {
     "request.reopen",
     "report.view",
     "knowledge.view",
+
+    "feedback.view",
+    "feedback.update",
+    "feedback.add_update",
+
+    "notification.view",
+    "notification.update",
   ],
 
   ADMIN: [
@@ -831,6 +877,15 @@ const rolePermissions = {
 
     "report.view",
     "report.export",
+
+    "feedback.view",
+    "feedback.assign",
+    "feedback.update",
+    "feedback.add_update",
+    "feedback.dismiss",
+
+    "notification.view",
+    "notification.update",
 
     "system.settings",
   ],
@@ -879,6 +934,15 @@ const rolePermissions = {
 
     "report.view",
     "report.export",
+
+    "feedback.view",
+    "feedback.assign",
+    "feedback.update",
+    "feedback.add_update",
+    "feedback.dismiss",
+
+    "notification.view",
+    "notification.update",
 
     "system.settings",
     "role.manage",

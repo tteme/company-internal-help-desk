@@ -7,13 +7,14 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import requestRoutes from "./routes/request.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import clientFeedbackRoutes from "./routes/clientFeedback.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
 import branchRoutes from "./routes/branch.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import categoryKeywordRoutes from "./routes/category-keyword.routes.js";
 import slaRoutes from "./routes/sla.routes.js";
 import businessHoursRoutes from "./routes/business-hours.routes.js";
-import reports from "./routes/reports.routes.js"
+import reports from "./routes/reports.routes.js";
 
 const app = express();
 app.use(cookieParser());
@@ -37,6 +38,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/client-feedback", clientFeedbackRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/categories", categoryRoutes);

@@ -110,6 +110,14 @@ function Topbar({ onMenuClick }) {
         setUnreadCount((currentCount) => Math.max(0, currentCount - 1));
       }
 
+      // Client feedback notification
+      if (notification.feedbackId) {
+        setIsNotificationOpen(false);
+        navigate(`/feedback/${notification.feedbackId}`);
+        return;
+      }
+
+      // Request notification
       if (notification.requestId) {
         setIsNotificationOpen(false);
         navigate(`/requests/${notification.requestId}`);
@@ -118,6 +126,7 @@ function Topbar({ onMenuClick }) {
       console.error("Failed to mark notification as read:", error);
     }
   }
+
   async function handleMarkAllAsRead() {
     if (unreadCount === 0) {
       return;

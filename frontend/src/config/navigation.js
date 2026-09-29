@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Settings,
   UserCircle,
+  MessageSquareText,
 } from "lucide-react";
 
 export const navigation = {
@@ -49,6 +50,12 @@ export const navigation = {
       section: "Main",
     },
     {
+      label: "Client Feedback",
+      path: "/feedback",
+      icon: MessageSquareText,
+      section: "Customer Service",
+    },
+    {
       label: "Profile",
       path: "/profile",
       icon: UserCircle,
@@ -68,6 +75,12 @@ export const navigation = {
       path: "/requests",
       icon: ClipboardList,
       section: "Main",
+    },
+    {
+      label: "Client Feedback",
+      path: "/feedback",
+      icon: MessageSquareText,
+      section: "Customer Service",
     },
     {
       label: "Escalations",
@@ -95,6 +108,12 @@ export const navigation = {
       path: "/requests",
       icon: ClipboardList,
       section: "Main",
+    },
+    {
+      label: "Client Feedback",
+      path: "/feedback",
+      icon: MessageSquareText,
+      section: "Customer Service",
     },
     {
       label: "Users",
@@ -158,6 +177,12 @@ export const navigation = {
       path: "/requests",
       icon: ClipboardList,
       section: "Main",
+    },
+    {
+      label: "Client Feedback",
+      path: "/feedback",
+      icon: MessageSquareText,
+      section: "Customer Service",
     },
     {
       label: "Users",

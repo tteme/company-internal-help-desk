@@ -16,6 +16,11 @@ import Users from "../pages/administration/Users";
 import SlaPolicies from "../pages/administration/SlaPolicies";
 import BusinessHours from "../pages/administration/BusinessHours";
 import Reports from "../pages/administration/Reports";
+import ClientFeedback from "../pages/client-feedback/ClientFeedback";
+import ClientFeedbackList from "../pages/client-feedback/ClientFeedbackList";
+import ClientFeedbackDetails from "../pages/client-feedback/ClientFeedbackDetails";
+import Home from "../pages/public/Home";
+import ActivateAccount from "../pages/auth/ActivateAccount";
 
 function AppRoutes() {
   return (
@@ -23,8 +28,10 @@ function AppRoutes() {
       <Routes>
         <Route element={<PublicRoute />}>
           <Route path="/login" element={<Login />} />
+          <Route path="/activate" element={<ActivateAccount />} />
         </Route>
-
+        <Route path="/" element={<Home />} />
+        <Route path="/client-feedback" element={<ClientFeedback />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -45,6 +52,21 @@ function AppRoutes() {
               }
             >
               <Route path="/reports" element={<Reports />} />
+            </Route>
+            <Route
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={[
+                    "ADMIN",
+                    "SYSTEM_ADMINISTRATOR",
+                    "DEPARTMENT_HEAD",
+                    "DEPARTMENT_OFFICER",
+                  ]}
+                />
+              }
+            >
+              <Route path="/feedback" element={<ClientFeedbackList />} />
+              <Route path="/feedback/:id" element={<ClientFeedbackDetails />} />
             </Route>
             <Route element={<RoleProtectedRoute allowedRoles={["EMPLOYEE"]} />}>
               <Route path="/requests/create" element={<CreateRequest />} />

@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Menu } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 
-import { logout as logoutRequest } from "../services/auth.service";
 import {
   getNotifications,
   getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from "../services/notification.service";
-import { logout } from "../store/slices/authSlice";
 
 function Topbar({ onMenuClick }) {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const user = useSelector((state) => state.auth.user);
@@ -146,15 +143,6 @@ function Topbar({ onMenuClick }) {
       setUnreadCount(0);
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
-    }
-  }
-  async function handleLogout() {
-    try {
-      await logoutRequest();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      dispatch(logout());
     }
   }
 
@@ -328,18 +316,6 @@ function Topbar({ onMenuClick }) {
             </div>
           )}
         </div>
-
-        {/* Logout */}
-        <button
-          type="button"
-          onClick={handleLogout}
-          aria-label="Logout"
-          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-danger transition-colors hover:bg-danger-light sm:gap-2 sm:px-3 sm:text-sm"
-        >
-          <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
-
-          <span>Logout</span>
-        </button>
       </nav>
     </header>
   );

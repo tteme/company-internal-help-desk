@@ -1,10 +1,14 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { NavLink } from "react-router-dom";
-import { X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 
+import { logout as logoutRequest } from "../services/auth.service";
+import { logout } from "../store/slices/authSlice";
 import { navigation } from "../config/navigation";
 
 function Sidebar({ isOpen, onClose }) {
+  const dispatch = useDispatch();
+
   const userRole = useSelector((state) => state.auth.user?.role);
   const menuItems = navigation[userRole] || [];
 
@@ -20,6 +24,16 @@ function Sidebar({ isOpen, onClose }) {
     return groups;
   }, {});
 
+  async function handleLogout() {
+    try {
+      await logoutRequest();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      dispatch(logout());
+    }
+  }
+
   return (
     <>
       {/* Mobile overlay */}
@@ -34,13 +48,14 @@ function Sidebar({ isOpen, onClose }) {
 
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col bg-primary text-white",
+          "fixed inset-y-0 left-0 z-50 flex h-screen w-60 flex-col bg-primary text-white",
           "transform transition-transform duration-200 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          "lg:static lg:translate-x-0",
+          "lg:translate-x-0",
         ].join(" ")}
       >
-        <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+        {/* Sidebar Header */}
+        <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-5">
           <div>
             <img
               src="/digafLogo.svg"
@@ -63,9 +78,10 @@ function Sidebar({ isOpen, onClose }) {
           </button>
         </header>
 
+        {/* Scrollable Navigation */}
         <nav
           aria-label="Main navigation"
-          className="flex-1 overflow-y-auto px-3 py-5"
+          className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto bg-primary px-3 py-5"
         >
           <ul className="space-y-6">
             {Object.entries(sections).map(([sectionName, sectionItems]) => (
@@ -109,8 +125,19 @@ function Sidebar({ isOpen, onClose }) {
           </ul>
         </nav>
 
-        <footer className="border-t border-white/10 px-6 py-4">
-          <p className="text-xs text-white/50">Digaf Microfinance S.C.</p>
+        {/* Sidebar Footer */}
+        <footer className="shrink-0 border-t border-white/10 bg-white/5 px-3 py-4">
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Logout"
+            className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-danger-light hover:text-danger"
+          >
+            <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
+
+            <span>Logout</span>
+          </button>
         </footer>
       </aside>
     </>

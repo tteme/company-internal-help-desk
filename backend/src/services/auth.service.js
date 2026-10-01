@@ -3,9 +3,11 @@ import { comparePassword } from "../utils/password.js";
 import { generateToken } from "../utils/jwt.js";
 
 export const login = async (email, password) => {
+  const normalizedEmail = email.trim().toLowerCase();
+
   // 1. Find user
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: normalizedEmail },
     include: {
       branch: true,
       department: true,
@@ -24,11 +26,19 @@ export const login = async (email, password) => {
       },
     },
   });
-
+  // 2. User does not exist
   // 2. User does not exist
   if (!user) {
     throw new Error("Invalid email or password.");
   }
+
+  console.log("🔎 User found:", {
+    email: user.email,
+    status: user.status,
+    isActive: user.isActive,
+    emailVerified: user.emailVerified,
+    hasPasswordHash: !!user.passwordHash,
+  });
 
   // 3. Check account status
   if (user.status !== "ACTIVE" || !user.isActive) {
@@ -41,6 +51,7 @@ export const login = async (email, password) => {
   }
 
   // 5. Compare password
+
   const passwordMatches = await comparePassword(password, user.passwordHash);
 
   if (!passwordMatches) {
@@ -48,6 +59,7 @@ export const login = async (email, password) => {
   }
 
   // 6. Update last login
+
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -56,6 +68,7 @@ export const login = async (email, password) => {
   });
 
   // 7. Generate JWT
+
   const token = generateToken({
     userId: user.id,
   });

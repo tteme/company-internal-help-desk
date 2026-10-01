@@ -15,6 +15,7 @@ import categoryKeywordRoutes from "./routes/category-keyword.routes.js";
 import slaRoutes from "./routes/sla.routes.js";
 import businessHoursRoutes from "./routes/business-hours.routes.js";
 import reports from "./routes/reports.routes.js";
+import roleRoutes from "./routes/role.routes.js";
 
 const app = express();
 app.use(cookieParser());
@@ -46,6 +47,7 @@ app.use("/api", categoryKeywordRoutes);
 app.use("/api/sla", slaRoutes);
 app.use("/api/business-hours", businessHoursRoutes);
 app.use("/api/reports", reports);
+app.use("/api/roles", roleRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

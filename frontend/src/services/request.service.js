@@ -72,11 +72,23 @@ async function rateRequest(requestId, rating, comment = "") {
   });
 }
 
+async function escalateRequest(requestId, reason, description = "") {
+  return apiRequest(`/requests/${requestId}/escalate`, {
+    method: "POST",
+    body: JSON.stringify({
+      reason,
+      description,
+    }),
+  });
+}
+
+
 export {
   getRequests,
   createRequest,
   startRequest,
   resolveRequest,
+  escalateRequest,
   confirmOrRejectRequest,
   rateRequest,
 };

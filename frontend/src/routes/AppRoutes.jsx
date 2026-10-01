@@ -22,6 +22,7 @@ import ClientFeedbackDetails from "../pages/client-feedback/ClientFeedbackDetail
 import Home from "../pages/public/Home";
 import ActivateAccount from "../pages/auth/ActivateAccount";
 import Roles from "../pages/role/Roles";
+import Escalations from "../pages/escalation/Escalations";
 
 function AppRoutes() {
   return (
@@ -51,7 +52,7 @@ function AppRoutes() {
               <Route path="/sla" element={<SlaPolicies />} />
               <Route path="/business-hours" element={<BusinessHours />} />
             </Route>
-            
+
             <Route
               element={
                 <RoleProtectedRoute
@@ -74,6 +75,13 @@ function AppRoutes() {
                 />
               }
             >
+              <Route
+                element={
+                  <RoleProtectedRoute allowedRoles={["DEPARTMENT_HEAD"]} />
+                }
+              >
+                <Route path="/escalations" element={<Escalations />} />
+              </Route>
               <Route path="/feedback" element={<ClientFeedbackList />} />
               <Route path="/feedback/:id" element={<ClientFeedbackDetails />} />
             </Route>

@@ -6,6 +6,7 @@ import Badge from "../../components/ui/Badge";
 import {
   startRequest,
   resolveRequest,
+  escalateRequest,
   confirmOrRejectRequest,
   rateRequest,
 } from "../../services/request.service";
@@ -71,6 +72,12 @@ function RequestDetails() {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [showRatingForm, setShowRatingForm] = useState(false);
 
+  const [showEscalationForm, setShowEscalationForm] = useState(false);
+  const [escalationReason, setEscalationReason] = useState("");
+  const [escalationDescription, setEscalationDescription] = useState("");
+  const [isEscalatingRequest, setIsEscalatingRequest] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
   const isRequestCreator = request?.creatorId === user?.id;
   const isCurrentAssignee = request?.assigneeId === user?.id;
 
@@ -131,6 +138,37 @@ function RequestDetails() {
       setError(error.message || "Failed to resolve request.");
     } finally {
       setIsResolvingRequest(false);
+    }
+  }
+
+  async function handleEscalateRequest() {
+    if (!escalationReason.trim()) {
+      setError("Escalation reason is required.");
+      return;
+    }
+
+    try {
+      setIsEscalatingRequest(true);
+      setError("");
+      setSuccessMessage("");
+
+      const response = await escalateRequest(
+        request.id,
+        escalationReason.trim(),
+        escalationDescription.trim(),
+      );
+
+      setRequest(response.data.request);
+
+      setEscalationReason("");
+      setEscalationDescription("");
+      setShowEscalationForm(false);
+
+      setSuccessMessage("Request escalated successfully.");
+    } catch (error) {
+      setError(error.message || "Failed to escalate request.");
+    } finally {
+      setIsEscalatingRequest(false);
     }
   }
 
@@ -244,6 +282,14 @@ function RequestDetails() {
 
   return (
     <section>
+      {successMessage && (
+        <div
+          role="status"
+          className="mb-5 rounded-lg border border-success/20 bg-success-light px-4 py-3 text-sm font-medium text-success"
+        >
+          {successMessage}
+        </div>
+      )}
       <button
         type="button"
         onClick={() => navigate("/requests")}
@@ -702,13 +748,106 @@ function RequestDetails() {
               </div>
             )}
 
-            {canEscalateRequest && (
+            {canEscalateRequest && !showEscalationForm && (
               <button
                 type="button"
+                onClick={() => {
+                  setError("");
+                  setShowEscalationForm(true);
+                }}
                 className="rounded-md border border-danger px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger-light"
               >
                 Escalate
               </button>
+            )}
+
+            {canEscalateRequest && showEscalationForm && (
+              <div className="w-full rounded-lg border border-danger/20 bg-danger-light p-4">
+                <h3 className="text-base font-semibold text-text">
+                  Escalate Request
+                </h3>
+
+                <p className="mt-1 text-sm text-text-secondary">
+                  Select the reason for escalating this request to the
+                  Department Head.
+                </p>
+
+                <label
+                  htmlFor="escalation-reason"
+                  className="mt-4 block text-sm font-medium text-text"
+                >
+                  Reason
+                </label>
+
+                <select
+                  id="escalation-reason"
+                  value={escalationReason}
+                  onChange={(event) => setEscalationReason(event.target.value)}
+                  disabled={isEscalatingRequest}
+                  className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors focus:border-danger focus:ring-2 focus:ring-danger/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">Select a reason</option>
+                  <option value="OFFICER_ESCALATION">Officer Escalation</option>
+                  <option value="COMPLEXITY">Complexity</option>
+                  <option value="MANAGEMENT_REQUEST">Management Request</option>
+                </select>
+
+                <label
+                  htmlFor="escalation-description"
+                  className="mt-4 block text-sm font-medium text-text"
+                >
+                  Description{" "}
+                  <span className="font-normal text-text-muted">
+                    (optional)
+                  </span>
+                </label>
+
+                <textarea
+                  id="escalation-description"
+                  value={escalationDescription}
+                  onChange={(event) =>
+                    setEscalationDescription(event.target.value)
+                  }
+                  placeholder="Provide additional details about the escalation..."
+                  rows={4}
+                  maxLength={1000}
+                  disabled={isEscalatingRequest}
+                  className="mt-2 w-full resize-y rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus:border-danger focus:ring-2 focus:ring-danger/20 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEscalationForm(false);
+                        setEscalationReason("");
+                        setEscalationDescription("");
+                        setError("");
+                      }}
+                      disabled={isEscalatingRequest}
+                      className="rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium text-text transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleEscalateRequest}
+                      disabled={isEscalatingRequest || !escalationReason.trim()}
+                      className="rounded-md bg-danger px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isEscalatingRequest
+                        ? "Escalating..."
+                        : "Confirm Escalation"}
+                    </button>
+                  </div>
+
+                  <span className="text-xs text-text-muted">
+                    {escalationDescription.length}/1000
+                  </span>
+                </div>
+              </div>
             )}
 
             {canConfirmRequest && (
@@ -810,14 +949,14 @@ function RequestDetails() {
                   onChange={(event) => setRatingComment(event.target.value)}
                   placeholder="Tell us about your experience..."
                   rows={3}
-                  maxLength={5000}
+                  maxLength={1000}
                   disabled={isSubmittingRating}
                   className="mt-2 w-full resize-y rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="text-xs text-text-muted">
-                    {ratingComment.length}/5000
+                    {ratingComment.length}/1000
                   </span>
 
                   <button

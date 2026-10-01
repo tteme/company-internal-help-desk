@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, Menu } from "lucide-react";
+import { Bell, LogOut, Menu } from "lucide-react";
 
 import { logout as logoutRequest } from "../services/auth.service";
 import {
@@ -168,7 +168,7 @@ function Topbar({ onMenuClick }) {
     : "";
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-white px-6">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-white px-3 sm:px-4 lg:px-6">
       {/* Mobile menu */}
       <button
         type="button"
@@ -180,7 +180,7 @@ function Topbar({ onMenuClick }) {
       </button>
 
       {/* Search */}
-      <search className="mx-6 flex-1">
+      <search className="mx-2 hidden min-w-0 flex-1 sm:mx-4 sm:block lg:mx-6">
         <form>
           <label htmlFor="global-search" className="sr-only">
             Search
@@ -191,7 +191,7 @@ function Topbar({ onMenuClick }) {
             name="search"
             type="search"
             placeholder="Search requests, users, or tickets..."
-            className="w-full max-w-xl rounded-lg border border-border bg-background px-4 py-2 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="w-full min-w-0 max-w-xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 sm:px-4"
           />
         </form>
       </search>
@@ -333,9 +333,12 @@ function Topbar({ onMenuClick }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-light"
+          aria-label="Logout"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-danger transition-colors hover:bg-danger-light sm:gap-2 sm:px-3 sm:text-sm"
         >
-          Logout
+          <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
+
+          <span>Logout</span>
         </button>
       </nav>
     </header>

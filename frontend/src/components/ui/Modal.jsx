@@ -1,6 +1,9 @@
 import { X } from "lucide-react";
 
-function Modal({ title, children, onClose, size = "md" }) {
+function Modal({isOpen, title, children, onClose, size = "md" }) {
+  if (!isOpen) {
+    return null;
+  }
   const sizeClasses = {
     sm: "max-w-md",
     md: "max-w-lg",

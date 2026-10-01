@@ -21,6 +21,7 @@ import ClientFeedbackList from "../pages/client-feedback/ClientFeedbackList";
 import ClientFeedbackDetails from "../pages/client-feedback/ClientFeedbackDetails";
 import Home from "../pages/public/Home";
 import ActivateAccount from "../pages/auth/ActivateAccount";
+import Roles from "../pages/role/Roles";
 
 function AppRoutes() {
   return (
@@ -36,14 +37,21 @@ function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/requests" element={<Requests />} />
+            <Route
+              element={
+                <RoleProtectedRoute allowedRoles={["SYSTEM_ADMINISTRATOR"]} />
+              }
+            >
+              <Route path="/administration/roles" element={<Roles />} />
+            </Route>
             <Route element={<RoleProtectedRoute allowedRoles={["ADMIN"]} />}>
               <Route path="/branches" element={<Branches />} />
               <Route path="/departments" element={<Departments />} />
               <Route path="/categories" element={<Categories />} />
-              <Route path="/users" element={<Users />} />
               <Route path="/sla" element={<SlaPolicies />} />
               <Route path="/business-hours" element={<BusinessHours />} />
             </Route>
+            
             <Route
               element={
                 <RoleProtectedRoute
@@ -52,6 +60,7 @@ function AppRoutes() {
               }
             >
               <Route path="/reports" element={<Reports />} />
+              <Route path="/users" element={<Users />} />
             </Route>
             <Route
               element={

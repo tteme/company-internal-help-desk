@@ -192,7 +192,7 @@ export const navigation = {
     },
     {
       label: "Roles & Permissions",
-      path: "/roles-permissions",
+      path: "/administration/roles",
       icon: ShieldCheck,
       section: "Administration",
     },

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import Button from "../../components/ui/Button.jsx";
+import Button from "../ui/Button.jsx";
 
 import {
   getPermissions,
@@ -200,18 +200,18 @@ function RolePermissionManager({ role, onSaved }) {
   // TOGGLE PERMISSION
   // ==========================================================
 
- function handleTogglePermission(permissionId) {
-   setSelectedPermissionIds((current) => {
-     if (current.includes(permissionId)) {
-       return current.filter((id) => id !== permissionId);
-     }
+  function handleTogglePermission(permissionId) {
+    setSelectedPermissionIds((current) => {
+      if (current.includes(permissionId)) {
+        return current.filter((id) => id !== permissionId);
+      }
 
-     return [...current, permissionId];
-   });
+      return [...current, permissionId];
+    });
 
-   setHasChanges(true);
-   setSuccess("");
- }
+    setHasChanges(true);
+    setSuccess("");
+  }
 
   // ==========================================================
   // TOGGLE ENTIRE GROUP

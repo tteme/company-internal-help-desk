@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 
 import PageHeader from "../../components/ui/PageHeader.jsx";
 import Modal from "../../components/ui/Modal.jsx";
-import RoleTable from "./RoleTable.jsx";
+import RoleTable from "../../components/role/RoleTable.jsx";
 
 import { getRoles, getRoleById } from "../../services/role.service.js";
-import RolePermissionManager from "./RolePermissionManager.jsx";
+import RolePermissionManager from "../../components/role/RolePermissionManager.jsx";
 
 function Roles() {
   // ============================================================
@@ -153,96 +153,96 @@ function Roles() {
       {/* ====================================================== */}
       {/* MANAGE ROLE MODAL */}
       {/* ====================================================== */}
+      {isManageOpen && (
+        <Modal
+          onClose={handleCloseManage}
+          title={selectedRole ? `Manage ${selectedRole.name}` : "Manage Role"}
+        >
+          {isRoleLoading ? (
+            <div className="py-10 text-center text-sm text-text-secondary">
+              Loading role details...
+            </div>
+          ) : selectedRole ? (
+            <div className="space-y-6">
+              {/* ================================================== */}
+              {/* ROLE INFORMATION */}
+              {/* ================================================== */}
 
-      <Modal
-        isOpen={isManageOpen}
-        onClose={handleCloseManage}
-        title={selectedRole ? `Manage ${selectedRole.name}` : "Manage Role"}
-      >
-        {isRoleLoading ? (
-          <div className="py-10 text-center text-sm text-text-secondary">
-            Loading role details...
-          </div>
-        ) : selectedRole ? (
-          <div className="space-y-6">
-            {/* ================================================== */}
-            {/* ROLE INFORMATION */}
-            {/* ================================================== */}
+              <div className="rounded-lg border border-border bg-background p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+                      Role
+                    </p>
 
-            <div className="rounded-lg border border-border bg-background p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+                    <p className="mt-1 text-base font-semibold text-text">
+                      {selectedRole.name
+                        .replace(/_/g, " ")
+                        .toLowerCase()
+                        .replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                    </p>
+
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {selectedRole.description || "No description"}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-center">
+                    <p className="text-xs font-medium text-text-secondary">
+                      Permissions
+                    </p>
+
+                    <p className="mt-0.5 text-lg font-semibold text-text">
+                      {selectedRole.permissions.length}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 border-t border-border pt-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-                    Role
+                    Users assigned
                   </p>
 
-                  <p className="mt-1 text-base font-semibold text-text">
-                    {selectedRole.name
-                      .replace(/_/g, " ")
-                      .toLowerCase()
-                      .replace(/\b\w/g, (letter) => letter.toUpperCase())}
-                  </p>
-
-                  <p className="mt-1 text-sm text-text-secondary">
-                    {selectedRole.description || "No description"}
-                  </p>
-                </div>
-
-                <div className="shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-center">
-                  <p className="text-xs font-medium text-text-secondary">
-                    Permissions
-                  </p>
-
-                  <p className="mt-0.5 text-lg font-semibold text-text">
-                    {selectedRole.permissions.length}
+                  <p className="mt-1 text-sm font-medium text-text">
+                    {selectedRole.userCount}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-border pt-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-                  Users assigned
-                </p>
+              {/* ================================================== */}
+              {/* PERMISSIONS */}
+              {/* ================================================== */}
 
-                <p className="mt-1 text-sm font-medium text-text">
-                  {selectedRole.userCount}
-                </p>
+              <div>
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-text">
+                      Permissions
+                    </h3>
+
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Select which permissions should be assigned to this role.
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-medium text-text">
+                    {selectedRole.permissions.length} assigned
+                  </span>
+                </div>
+
+                <RolePermissionManager
+                  role={selectedRole}
+                  onSaved={handleRoleSaved}
+                />
               </div>
             </div>
-
-            {/* ================================================== */}
-            {/* PERMISSIONS */}
-            {/* ================================================== */}
-
-            <div>
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-text">
-                    Permissions
-                  </h3>
-
-                  <p className="mt-1 text-xs text-text-secondary">
-                    Select which permissions should be assigned to this role.
-                  </p>
-                </div>
-
-                <span className="shrink-0 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-medium text-text">
-                  {selectedRole.permissions.length} assigned
-                </span>
-              </div>
-
-              <RolePermissionManager
-                role={selectedRole}
-                onSaved={handleRoleSaved}
-              />
+          ) : (
+            <div className="py-10 text-center text-sm text-text-secondary">
+              Role information could not be loaded.
             </div>
-          </div>
-        ) : (
-          <div className="py-10 text-center text-sm text-text-secondary">
-            Role information could not be loaded.
-          </div>
-        )}
-      </Modal>
+          )}
+        </Modal>
+      )}
     </section>
   );
 }

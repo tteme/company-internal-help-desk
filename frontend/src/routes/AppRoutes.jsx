@@ -21,7 +21,7 @@ import ClientFeedbackList from "../components/client-feedback/ClientFeedbackList
 import ClientFeedbackDetails from "../components/client-feedback/ClientFeedbackDetails";
 import Home from "../pages/public/Home";
 import ActivateAccount from "../pages/auth/ActivateAccount";
-import Roles from "../pages/role/Roles";
+import Roles from "../pages/administration/Roles";
 import Escalations from "../pages/escalation/Escalations";
 import Settings from "../pages/settings/Settings";
 import Maintenance from "../pages/maintenance/Maintenance";

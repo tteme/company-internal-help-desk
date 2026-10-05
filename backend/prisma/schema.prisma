@@ -150,6 +150,41 @@ enum BusinessDay {
   SUNDAY
 }
 
+enum SystemSettingType {
+  STRING
+  BOOLEAN
+  NUMBER
+  ENUM
+}
+
+enum SystemSettingCategory {
+  GENERAL
+  REQUEST
+  NOTIFICATION
+  SECURITY
+  SYSTEM
+}
+// ============================================================
+// SYSTEM SETTINGS
+// ============================================================
+
+model SystemSetting {
+  id String @id @default(uuid())
+
+  key         String                @unique
+  value       String
+  type        SystemSettingType
+  category    SystemSettingCategory
+  description String?
+
+  isEditable Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+}
+
 // ============================================================
 // BRANCH
 // ============================================================

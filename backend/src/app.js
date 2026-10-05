@@ -16,6 +16,8 @@ import slaRoutes from "./routes/sla.routes.js";
 import businessHoursRoutes from "./routes/business-hours.routes.js";
 import reports from "./routes/reports.routes.js";
 import roleRoutes from "./routes/role.routes.js";
+import systemSettingRoutes from "./routes/system-setting.routes.js";
+import systemStatusRoutes from "./routes/system-status.routes.js";
 
 const app = express();
 app.use(cookieParser());
@@ -26,7 +28,7 @@ app.use(helmet());
 // CORS
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   }),
 );
@@ -48,6 +50,8 @@ app.use("/api/sla", slaRoutes);
 app.use("/api/business-hours", businessHoursRoutes);
 app.use("/api/reports", reports);
 app.use("/api/roles", roleRoutes);
+app.use("/api/system-settings", systemSettingRoutes);
+app.use("/api/system-status", systemStatusRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

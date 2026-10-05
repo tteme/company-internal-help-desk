@@ -1564,7 +1564,63 @@ async function main() {
   });
 
   console.log("✅ Test Department Head synchronized.");
+  // ============================================================
+  // SYSTEM SETTINGS
+  // ============================================================
 
+  const systemSettings = [
+    {
+      key: "system.name",
+      value: "Digaf Help Desk",
+      type: "STRING",
+      category: "GENERAL",
+      description: "The name of the internal help desk system.",
+      isEditable: true,
+    },
+    {
+      key: "system.description",
+      value: "Internal Help Desk Management System",
+      type: "STRING",
+      category: "GENERAL",
+      description: "A short description of the internal help desk system.",
+      isEditable: true,
+    },
+    {
+      key: "system.timezone",
+      value: "Africa/Addis_Ababa",
+      type: "STRING",
+      category: "GENERAL",
+      description: "The default timezone used by the system.",
+      isEditable: true,
+    },
+    {
+      key: "system.maintenanceMode",
+      value: "false",
+      type: "BOOLEAN",
+      category: "SYSTEM",
+      description: "Controls whether the system is in maintenance mode.",
+      isEditable: true,
+    },
+  ];
+
+  for (const setting of systemSettings) {
+    await prisma.systemSetting.upsert({
+      where: {
+        key: setting.key,
+      },
+      update: {
+        value: setting.value,
+        type: setting.type,
+        category: setting.category,
+        description: setting.description,
+        isEditable: setting.isEditable,
+      },
+      create: setting,
+    });
+  }
+
+  console.log("System settings seeded successfully.");
+  
   console.log("========================================");
   console.log("Database seed completed successfully.");
   console.log("========================================");

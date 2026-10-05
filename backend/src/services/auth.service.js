@@ -26,40 +26,31 @@ export const login = async (email, password) => {
       },
     },
   });
-  // 2. User does not exist
+
   // 2. User does not exist
   if (!user) {
     throw new Error("Invalid email or password.");
   }
 
-  console.log("🔎 User found:", {
-    email: user.email,
-    status: user.status,
-    isActive: user.isActive,
-    emailVerified: user.emailVerified,
-    hasPasswordHash: !!user.passwordHash,
-  });
+  // 3. Check account status and password existence together,
+  // using one generic message so the response doesn't reveal
+  // which specific condition failed.
+  if (user.status !== "ACTIVE" || !user.isActive || !user.passwordHash) {
+    console.warn(
+      `Login blocked for ${normalizedEmail}: status=${user.status}, isActive=${user.isActive}, hasPassword=${!!user.passwordHash}`,
+    );
 
-  // 3. Check account status
-  if (user.status !== "ACTIVE" || !user.isActive) {
-    throw new Error("Your account is not active.");
+    throw new Error("Invalid email or password.");
   }
 
-  // 4. Check password exists
-  if (!user.passwordHash) {
-    throw new Error("Your account has not been activated.");
-  }
-
-  // 5. Compare password
-
+  // 4. Compare password
   const passwordMatches = await comparePassword(password, user.passwordHash);
 
   if (!passwordMatches) {
     throw new Error("Invalid email or password.");
   }
 
-  // 6. Update last login
-
+  // 5. Update last login
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -67,13 +58,12 @@ export const login = async (email, password) => {
     },
   });
 
-  // 7. Generate JWT
-
+  // 6. Generate JWT
   const token = generateToken({
     userId: user.id,
   });
 
-  // 8. Build permissions list
+  // 7. Build permissions list
   const permissions = [
     ...new Set(
       user.userRoles.flatMap((userRole) =>
@@ -84,7 +74,7 @@ export const login = async (email, password) => {
     ),
   ];
 
-  // 9. Never return passwordHash
+  // 8. Never return passwordHash
   return {
     token,
     user: {

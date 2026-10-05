@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getRequests } from "../../services/request.service";
-import EscalationTable from "./EscalationTable";
+import EscalationTable from "../../components/escalation/EscalationTable";
 
 function Escalations() {
   const navigate = useNavigate();

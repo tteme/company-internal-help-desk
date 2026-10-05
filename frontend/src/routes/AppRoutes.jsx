@@ -23,11 +23,14 @@ import Home from "../pages/public/Home";
 import ActivateAccount from "../pages/auth/ActivateAccount";
 import Roles from "../pages/role/Roles";
 import Escalations from "../pages/escalation/Escalations";
+import Settings from "../pages/settings/Settings";
+import Maintenance from "../pages/maintenance/Maintenance";
 
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/maintenance" element={<Maintenance />} />
         <Route element={<PublicRoute />}>
           <Route path="/login" element={<Login />} />
           <Route path="/activate" element={<ActivateAccount />} />
@@ -44,6 +47,7 @@ function AppRoutes() {
               }
             >
               <Route path="/administration/roles" element={<Roles />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
             <Route element={<RoleProtectedRoute allowedRoles={["ADMIN"]} />}>
               <Route path="/branches" element={<Branches />} />

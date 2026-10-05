@@ -191,6 +191,36 @@ export const navigation = {
       section: "Administration",
     },
     {
+      label: "Branches",
+      path: "/branches",
+      icon: GitBranch,
+      section: "Administration",
+    },
+    {
+      label: "Departments",
+      path: "/departments",
+      icon: Building2,
+      section: "Administration",
+    },
+    {
+      label: "Categories",
+      path: "/categories",
+      icon: Tags,
+      section: "Administration",
+    },
+    {
+      label: "SLA Policies",
+      path: "/sla",
+      icon: Timer,
+      section: "Configuration",
+    },
+    {
+      label: "Business Hours",
+      path: "/business-hours",
+      icon: Clock3,
+      section: "Configuration",
+    },
+    {
       label: "Roles & Permissions",
       path: "/administration/roles",
       icon: ShieldCheck,

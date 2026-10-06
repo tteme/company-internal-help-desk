@@ -7,11 +7,27 @@ import { createNotification } from "./notification.service.js";
 
 export const createClientFeedback = async ({
   fullName,
-  email,
+  titleId,
   phoneNumber,
   description,
 }) => {
   const feedback = await prisma.$transaction(async (tx) => {
+    // Verify that the selected feedback title exists and is active.
+    const title = await tx.clientFeedbackTitle.findFirst({
+      where: {
+        id: titleId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (!title) {
+      throw new Error("Feedback title not found or inactive.");
+    }
+
     // Atomically get the next feedback reference number
     const sequence = await tx.clientFeedbackSequence.upsert({
       where: {
@@ -37,7 +53,7 @@ export const createClientFeedback = async ({
       data: {
         referenceNumber,
         fullName: fullName.trim(),
-        email: email.trim().toLowerCase(),
+        titleId: title.id,
         phoneNumber: phoneNumber.trim(),
         description: description.trim(),
         status: "PENDING_REVIEW",
@@ -118,8 +134,8 @@ export const getClientFeedbacks = async ({ userId, role, status }) => {
       id: true,
       referenceNumber: true,
       fullName: true,
-      email: true,
       phoneNumber: true,
+      titleId: true,
       description: true,
       status: true,
 
@@ -132,6 +148,14 @@ export const getClientFeedbacks = async ({ userId, role, status }) => {
 
       createdAt: true,
       updatedAt: true,
+
+      title: {
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+        },
+      },
 
       department: {
         select: {
@@ -168,11 +192,7 @@ export const getClientFeedbacks = async ({ userId, role, status }) => {
 // GET CLIENT FEEDBACK BY ID
 // ============================================================
 
-export const getClientFeedbackById = async ({
-  feedbackId,
-  userId,
-  role,
-}) => {
+export const getClientFeedbackById = async ({ feedbackId, userId, role }) => {
   const feedback = await prisma.clientFeedback.findUnique({
     where: {
       id: feedbackId,
@@ -181,8 +201,16 @@ export const getClientFeedbackById = async ({
       id: true,
       referenceNumber: true,
       fullName: true,
-      email: true,
       phoneNumber: true,
+
+      titleId: true,
+      title: {
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+        },
+      },
 
       description: true,
       status: true,
@@ -259,22 +287,15 @@ export const getClientFeedbackById = async ({
 
   // Department officers and heads can only view
   // feedback assigned to themselves
-  if (
-    role === "DEPARTMENT_OFFICER" ||
-    role === "DEPARTMENT_HEAD"
-  ) {
+  if (role === "DEPARTMENT_OFFICER" || role === "DEPARTMENT_HEAD") {
     if (feedback.assignedToId !== userId) {
-      throw new Error(
-        "You are not authorized to view this client feedback.",
-      );
+      throw new Error("You are not authorized to view this client feedback.");
     }
 
     return feedback;
   }
 
-  throw new Error(
-    "You are not authorized to view this client feedback.",
-  );
+  throw new Error("You are not authorized to view this client feedback.");
 };
 
 // ============================================================
@@ -304,9 +325,7 @@ export const assignClientFeedback = async ({
 
   // Feedback should be assigned only while waiting for review
   if (feedback.status !== "PENDING_REVIEW") {
-    throw new Error(
-      "Only feedback pending review can be assigned.",
-    );
+    throw new Error("Only feedback pending review can be assigned.");
   }
 
   const department = await prisma.department.findFirst({
@@ -351,76 +370,76 @@ export const assignClientFeedback = async ({
     );
   }
 
-  const feedbackWithAssignment = await prisma.$transaction(
-    async (tx) => {
-      const updatedFeedback = await tx.clientFeedback.update({
-        where: {
-          id: feedbackId,
-        },
-        data: {
-          departmentId,
-          assignedToId,
-          assignedById,
-          status: "ASSIGNED",
-        },
-        select: {
-          id: true,
-          referenceNumber: true,
-          status: true,
-          departmentId: true,
-          assignedToId: true,
-          assignedById: true,
-          updatedAt: true,
+  const feedbackWithAssignment = await prisma.$transaction(async (tx) => {
+    const updatedFeedback = await tx.clientFeedback.update({
+      where: {
+        id: feedbackId,
+      },
+      data: {
+        departmentId,
+        assignedToId,
+        assignedById,
+        status: "ASSIGNED",
+      },
+      select: {
+        id: true,
+        referenceNumber: true,
+        status: true,
+        departmentId: true,
+        assignedToId: true,
+        assignedById: true,
+        updatedAt: true,
 
-          department: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-
-          assignedTo: {
-            select: {
-              id: true,
-              employeeId: true,
-              firstName: true,
-              lastName: true,
-              role: true,
-            },
-          },
-
-          assignedBy: {
-            select: {
-              id: true,
-              employeeId: true,
-              firstName: true,
-              lastName: true,
-              role: true,
-            },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
           },
         },
-      });
 
-      await createNotification({
-        userId: assignedToId,
-        feedbackId,
-        type: "CLIENT_FEEDBACK_ASSIGNED",
-        channel: "IN_APP",
-        title: "Client Feedback Assigned",
-        message: `Client feedback ${feedback.referenceNumber} has been assigned to you.`,
-        db: tx,
-      });
+        assignedTo: {
+          select: {
+            id: true,
+            employeeId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
 
-      return updatedFeedback;
-    },
-  );
+        assignedBy: {
+          select: {
+            id: true,
+            employeeId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    await createNotification({
+      userId: assignedToId,
+      feedbackId,
+      type: "CLIENT_FEEDBACK_ASSIGNED",
+      channel: "IN_APP",
+      title: "Client Feedback Assigned",
+      message: `Client feedback ${feedback.referenceNumber} has been assigned to you.`,
+      db: tx,
+    });
+
+    return updatedFeedback;
+  });
 
   return feedbackWithAssignment;
 };
+
 // ============================================================
 // UPDATE STATUS
 // ============================================================
+
 export const updateClientFeedbackStatus = async ({
   feedbackId,
   userId,
@@ -443,19 +462,15 @@ export const updateClientFeedbackStatus = async ({
   }
 
   // 2. Determine the user's role
-  const isAdmin =
-    role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR";
+  const isAdmin = role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR";
 
   const isAssignedUser =
-    (role === "DEPARTMENT_OFFICER" ||
-      role === "DEPARTMENT_HEAD") &&
+    (role === "DEPARTMENT_OFFICER" || role === "DEPARTMENT_HEAD") &&
     feedback.assignedToId === userId;
 
   // 3. Check authorization
   if (!isAdmin && !isAssignedUser) {
-    throw new Error(
-      "You are not authorized to update this client feedback.",
-    );
+    throw new Error("You are not authorized to update this client feedback.");
   }
 
   // 4. Define allowed status transitions
@@ -465,8 +480,7 @@ export const updateClientFeedbackStatus = async ({
     IN_REVIEW: ["ADDRESSED"],
   };
 
-  const allowedNextStatuses =
-    allowedTransitions[feedback.status] || [];
+  const allowedNextStatuses = allowedTransitions[feedback.status] || [];
 
   // 5. Check whether the requested transition is allowed
   if (!allowedNextStatuses.includes(status)) {
@@ -477,9 +491,7 @@ export const updateClientFeedbackStatus = async ({
 
   // 6. Only Admin/System Admin can dismiss feedback
   if (status === "DISMISSED" && !isAdmin) {
-    throw new Error(
-      "Only administrators can dismiss client feedback.",
-    );
+    throw new Error("Only administrators can dismiss client feedback.");
   }
 
   // 7. Update timestamps based on final status
@@ -573,9 +585,11 @@ export const updateClientFeedbackStatus = async ({
 
   return updatedFeedback;
 };
+
 // ============================================================
 // ADD INTERNAL UPDATE
 // ============================================================
+
 export const addClientFeedbackUpdate = async ({
   feedbackId,
   userId,
@@ -598,12 +612,10 @@ export const addClientFeedbackUpdate = async ({
   }
 
   // 2. Check whether the user is allowed to add an update
-  const isAdmin =
-    role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR";
+  const isAdmin = role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR";
 
   const isAssignedUser =
-    (role === "DEPARTMENT_OFFICER" ||
-      role === "DEPARTMENT_HEAD") &&
+    (role === "DEPARTMENT_OFFICER" || role === "DEPARTMENT_HEAD") &&
     feedback.assignedToId === userId;
 
   if (!isAdmin && !isAssignedUser) {
@@ -614,9 +626,7 @@ export const addClientFeedbackUpdate = async ({
 
   // 3. Do not allow updates to dismissed feedback
   if (feedback.status === "DISMISSED") {
-    throw new Error(
-      "Dismissed client feedback cannot receive updates.",
-    );
+    throw new Error("Dismissed client feedback cannot receive updates.");
   }
 
   // 4. Create the internal update

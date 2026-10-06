@@ -8,14 +8,13 @@ export const createClientFeedbackValidator = [
     .isLength({ max: 200 })
     .withMessage("Full name must not exceed 200 characters."),
 
-  body("email")
+  body("titleId")
     .trim()
     .notEmpty()
-    .withMessage("Email address is required.")
-    .isEmail()
-    .withMessage("Please provide a valid email address.")
-    .isLength({ max: 255 })
-    .withMessage("Email address must not exceed 255 characters."),
+    .withMessage("Feedback title is required.")
+    .bail()
+    .isUUID()
+    .withMessage("Feedback title ID must be a valid UUID."),
 
   body("phoneNumber")
     .trim()

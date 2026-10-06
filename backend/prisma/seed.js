@@ -287,7 +287,14 @@ const categoryKeywordConfig = {
     { keyword: "collateral", weight: 5 },
   ],
 };
-
+const clientFeedbackTitles = [
+  "General Feedback",
+  "Service Quality",
+  "Staff Behavior",
+  "Complaint",
+  "Suggestion",
+  "Other",
+];
 // ============================================================
 // BUSINESS HOURS CONFIGURATION
 // ============================================================
@@ -781,6 +788,25 @@ const permissions = [
     name: "notification.update",
     description: "Update notification status.",
   },
+  // ------------------------------------------------------------
+  // Client Feedback Title permissions
+  // ------------------------------------------------------------
+  {
+    name: "feedback.title.create",
+    description: "Create client feedback titles.",
+  },
+  {
+    name: "feedback.title.view",
+    description: "View client feedback titles.",
+  },
+  {
+    name: "feedback.title.update",
+    description: "Update client feedback titles.",
+  },
+  {
+    name: "feedback.title.delete",
+    description: "Deactivate client feedback titles.",
+  },
 ];
 
 // ============================================================
@@ -834,6 +860,11 @@ const rolePermissions = {
   ],
 
   ADMIN: [
+    "feedback.title.create",
+    "feedback.title.view",
+    "feedback.title.update",
+    "feedback.title.delete",
+
     "request.view",
 
     "user.create",
@@ -891,6 +922,11 @@ const rolePermissions = {
   ],
 
   SYSTEM_ADMINISTRATOR: [
+    "feedback.title.create",
+    "feedback.title.view",
+    "feedback.title.update",
+    "feedback.title.delete",
+
     "request.view",
 
     "user.create",
@@ -1259,6 +1295,21 @@ async function main() {
   }
 
   console.log("✅ SLA policies synchronized.");
+
+  // CLIENT FEEDBACK TITLES
+  for (const name of clientFeedbackTitles) {
+    await prisma.clientFeedbackTitle.upsert({
+      where: { name },
+      update: {},
+      create: {
+        name,
+        isActive: true,
+      },
+    });
+  }
+
+  console.log("✅ Client feedback titles synchronized.");
+  
   // ==========================================================
   // SYSTEM ADMINISTRATOR
   // ==========================================================
@@ -1620,7 +1671,7 @@ async function main() {
   }
 
   console.log("System settings seeded successfully.");
-  
+
   console.log("========================================");
   console.log("Database seed completed successfully.");
   console.log("========================================");

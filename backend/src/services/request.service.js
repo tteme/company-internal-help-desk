@@ -6,10 +6,7 @@ import { getRequestHistoryMessage } from "../utils/requestHistoryMessage.js";
 
 /**
  * Determine the request category from the title and description.
- *
- * Longer keywords are checked first so specific phrases such as
- * "salary deduction" take priority over shorter keywords such as "salary".
- *
+ * Longer keywords are checked first so specific phrases 
  * Overlapping keyword matches are counted only once.
  */
 const findCategoryFromDescription = async ({ title, description }) => {

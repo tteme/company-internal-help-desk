@@ -164,6 +164,7 @@ enum SystemSettingCategory {
   SECURITY
   SYSTEM
 }
+
 // ============================================================
 // SYSTEM SETTINGS
 // ============================================================
@@ -885,16 +886,37 @@ model CategoryKeyword {
 }
 
 // ============================================================
+// MODEL CLIENT FEEDBACK TITLE
+// ============================================================
+
+model ClientFeedbackTitle {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  isActive Boolean @default(true)
+
+  feedbacks ClientFeedback[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// ============================================================
 // MODEL CLIENT FEEDBACK
 // ============================================================
+
 model ClientFeedback {
   id String @id @default(uuid())
 
   referenceNumber String @unique
 
   fullName    String
-  email       String
   phoneNumber String
+
+  titleId String?
+  title   ClientFeedbackTitle? @relation(fields: [titleId], references: [id], onDelete: Restrict)
+
   description String
 
   status ClientFeedbackStatus @default(PENDING_REVIEW)
@@ -923,6 +945,7 @@ model ClientFeedback {
   @@index([departmentId])
   @@index([assignedToId])
   @@index([assignedById])
+  @@index([titleId])
   @@index([createdAt])
 }
 
@@ -933,6 +956,7 @@ model ClientFeedbackSequence {
   id    Int @id
   value Int @default(0)
 }
+
 // ============================================================
 // MODEL CLIENT FEEDBACK UPDATE
 // ============================================================

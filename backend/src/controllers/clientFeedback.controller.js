@@ -15,7 +15,7 @@ export const createClientFeedbackController = async (req, res) => {
   try {
     const feedback = await createClientFeedback({
       fullName: req.body.fullName,
-      email: req.body.email,
+      titleId: req.body.titleId,
       phoneNumber: req.body.phoneNumber,
       description: req.body.description,
     });
@@ -27,6 +27,13 @@ export const createClientFeedbackController = async (req, res) => {
     });
   } catch (error) {
     console.error("Create client feedback error:", error);
+
+    if (error.message === "Feedback title not found or inactive.") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
 
     return res.status(500).json({
       success: false,

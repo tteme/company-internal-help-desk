@@ -1,11 +1,16 @@
 import { apiRequest } from "./api";
 
-async function createClientFeedback(fullName, email, phoneNumber, description) {
+async function createClientFeedback(
+  fullName,
+  titleId,
+  phoneNumber,
+  description,
+) {
   return apiRequest("/client-feedback", {
     method: "POST",
     body: JSON.stringify({
       fullName,
-      email,
+      titleId,
       phoneNumber,
       description,
     }),

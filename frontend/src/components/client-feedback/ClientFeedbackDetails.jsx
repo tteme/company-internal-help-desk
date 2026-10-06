@@ -372,11 +372,11 @@ function ClientFeedbackDetails() {
 
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                Email
+                Feedback Title
               </p>
 
-              <p className="mt-1 break-all text-sm text-text-secondary">
-                {feedback.email}
+              <p className="mt-1 text-sm font-medium text-text">
+                {feedback.title?.name || "—"}
               </p>
             </div>
 

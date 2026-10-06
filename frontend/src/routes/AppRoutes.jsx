@@ -49,14 +49,6 @@ function AppRoutes() {
               <Route path="/administration/roles" element={<Roles />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
-            <Route element={<RoleProtectedRoute allowedRoles={["ADMIN"]} />}>
-              <Route path="/branches" element={<Branches />} />
-              <Route path="/departments" element={<Departments />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/sla" element={<SlaPolicies />} />
-              <Route path="/business-hours" element={<BusinessHours />} />
-            </Route>
-
             <Route
               element={
                 <RoleProtectedRoute
@@ -64,9 +56,15 @@ function AppRoutes() {
                 />
               }
             >
+              <Route path="/branches" element={<Branches />} />
+              <Route path="/departments" element={<Departments />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/sla" element={<SlaPolicies />} />
+              <Route path="/business-hours" element={<BusinessHours />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<Users />} />
             </Route>
+
             <Route
               element={
                 <RoleProtectedRoute

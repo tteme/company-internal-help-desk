@@ -1,26 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { apiRequest } from "../../services/api";
 import { createClientFeedback } from "../../services/client-feedback.service";
 
 function ClientFeedback() {
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [titleId, setTitleId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [description, setDescription] = useState("");
 
+  const [feedbackTitles, setFeedbackTitles] = useState([]);
+  const [isLoadingTitles, setIsLoadingTitles] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null);
+
+  useEffect(() => {
+    async function loadFeedbackTitles() {
+      try {
+        setIsLoadingTitles(true);
+        setError("");
+
+        const response = await apiRequest("/client-feedback-titles");
+
+        setFeedbackTitles(response.data || []);
+      } catch (error) {
+        setError(error.message || "Failed to load feedback titles.");
+      } finally {
+        setIsLoadingTitles(false);
+      }
+    }
+
+    loadFeedbackTitles();
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
 
     const trimmedFullName = fullName.trim();
-    const trimmedEmail = email.trim();
+    const trimmedPhoneNumber = phoneNumber.trim();
     const trimmedDescription = description.trim();
 
-    if (!trimmedFullName || !trimmedEmail || !trimmedDescription) {
-      setError("Full name, email, and description are required.");
+    if (
+      !trimmedFullName ||
+      !titleId ||
+      !trimmedPhoneNumber ||
+      !trimmedDescription
+    ) {
+      setError(
+        "Full name, phone number, feedback title, and description are required.",
+      );
       return;
     }
 
@@ -31,15 +61,16 @@ function ClientFeedback() {
 
       const response = await createClientFeedback(
         trimmedFullName,
-        trimmedEmail,
-        phoneNumber.trim(),
+        titleId,
+        trimmedPhoneNumber,
         trimmedDescription,
       );
 
       setSuccess(response.data);
 
       setFullName("");
-      setEmail("");
+      setTitleId("");
+      setPhoneNumber("");
       setDescription("");
     } catch (error) {
       setError(error.message || "Failed to submit feedback.");
@@ -118,48 +149,57 @@ function ClientFeedback() {
 
           <div className="mt-5">
             <label
-              htmlFor="feedback-email"
+              htmlFor="feedback-phone-number"
               className="block text-sm font-medium text-text"
             >
-              Email
+              Phone Number
             </label>
 
             <input
-              id="feedback-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Enter your email address"
-              maxLength={255}
+              id="feedback-phone-number"
+              type="tel"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
+              placeholder="Enter your phone number"
+              maxLength={30}
               disabled={isSubmitting}
               className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
             />
 
-            <p className="mt-1.5 text-xs text-text-muted">{email.length}/255</p>
+            <p className="mt-1.5 text-xs text-text-muted">
+              {phoneNumber.length}/30
+            </p>
           </div>
-<div className="mt-5">
-  <label
-    htmlFor="feedback-phone-number"
-    className="block text-sm font-medium text-text"
-  >
-    Phone Number
-  </label>
 
-  <input
-    id="feedback-phone-number"
-    type="tel"
-    value={phoneNumber}
-    onChange={(event) => setPhoneNumber(event.target.value)}
-    placeholder="Enter your phone number"
-    maxLength={30}
-    disabled={isSubmitting}
-    className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
-  />
+          <div className="mt-5">
+            <label
+              htmlFor="feedback-title"
+              className="block text-sm font-medium text-text"
+            >
+              Feedback Title
+            </label>
 
-  <p className="mt-1.5 text-xs text-text-muted">
-    {phoneNumber.length}/30
-  </p>
-</div>
+            <select
+              id="feedback-title"
+              value={titleId}
+              onChange={(event) => setTitleId(event.target.value)}
+              disabled={isSubmitting || isLoadingTitles}
+              className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="">
+                {isLoadingTitles
+                  ? "Loading feedback titles..."
+                  : "Select a feedback title"}
+              </option>
+
+              {feedbackTitles.map((title) => (
+                <option key={title.id} value={title.id}>
+                  {title.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="mt-5">
             <label
               htmlFor="feedback-description"
@@ -187,7 +227,7 @@ function ClientFeedback() {
           <div className="mt-6 flex justify-end">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoadingTitles}
               className="rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? "Submitting..." : "Submit Feedback"}

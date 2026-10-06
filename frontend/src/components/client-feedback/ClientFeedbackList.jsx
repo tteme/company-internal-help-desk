@@ -68,7 +68,7 @@ function ClientFeedbackList() {
       !searchTerm ||
       feedback.referenceNumber?.toLowerCase().includes(searchTerm) ||
       feedback.fullName?.toLowerCase().includes(searchTerm) ||
-      feedback.email?.toLowerCase().includes(searchTerm) ||
+      feedback.title?.name?.toLowerCase().includes(searchTerm) ||
       feedback.phoneNumber?.toLowerCase().includes(searchTerm) ||
       feedback.description?.toLowerCase().includes(searchTerm) ||
       feedback.department?.name?.toLowerCase().includes(searchTerm);
@@ -178,7 +178,7 @@ function ClientFeedbackList() {
             type="search"
             value={search}
             onChange={handleSearchChange}
-            placeholder="Search by reference, client, email, phone, or description..."
+            placeholder="Search by reference, client, title, phone, or description..."
             className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
         </div>
@@ -284,7 +284,7 @@ function ClientFeedbackList() {
                           </div>
 
                           <div className="mt-0.5 text-xs text-text-muted">
-                            {feedback.email}
+                            {feedback.title?.name || "—"}
                           </div>
                         </td>
 

@@ -25,6 +25,7 @@ import Roles from "../pages/administration/Roles";
 import Escalations from "../pages/administration/Escalations";
 import Settings from "../pages/settings/Settings";
 import Maintenance from "../pages/maintenance/Maintenance";
+import FeedbackTitles from "../pages/administration/FeedbackTitles";
 
 function AppRoutes() {
   return (
@@ -63,6 +64,7 @@ function AppRoutes() {
               <Route path="/business-hours" element={<BusinessHours />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<Users />} />
+              <Route path="/feedback-titles" element={<FeedbackTitles />} />
             </Route>
 
             <Route

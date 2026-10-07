@@ -12,6 +12,7 @@ import {
   Settings,
   UserCircle,
   MessageSquareText,
+  MessageSquare,
 } from "lucide-react";
 
 export const navigation = {
@@ -140,6 +141,12 @@ export const navigation = {
       section: "Administration",
     },
     {
+      label: "Feedback Titles",
+      path: "/feedback-titles",
+      icon: MessageSquare,
+      section: "Administration",
+    },
+    {
       label: "SLA Policies",
       path: "/sla",
       icon: Timer,
@@ -206,6 +213,12 @@ export const navigation = {
       label: "Categories",
       path: "/categories",
       icon: Tags,
+      section: "Administration",
+    },
+    {
+      label: "Feedback Titles",
+      path: "/feedback-titles",
+      icon: MessageSquare,
       section: "Administration",
     },
     {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import Dashboard from "../pages/dashboard/Dashboard";
 import Requests from "../pages/requests/Requests";
@@ -19,7 +19,6 @@ import Reports from "../pages/administration/Reports";
 import ClientFeedback from "../pages/administration/ClientFeedback";
 import ClientFeedbackList from "../components/client-feedback/ClientFeedbackList";
 import ClientFeedbackDetails from "../components/client-feedback/ClientFeedbackDetails";
-import Home from "../pages/public/Home";
 import ActivateAccount from "../pages/auth/ActivateAccount";
 import Roles from "../pages/administration/Roles";
 import Escalations from "../pages/administration/Escalations";
@@ -33,10 +32,11 @@ function AppRoutes() {
       <Routes>
         <Route path="/maintenance" element={<Maintenance />} />
         <Route element={<PublicRoute />}>
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/activate" element={<ActivateAccount />} />
         </Route>
-        <Route path="/" element={<Home />} />
+
         <Route path="/client-feedback" element={<ClientFeedback />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>

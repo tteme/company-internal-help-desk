@@ -1,3 +1,4 @@
+
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink } from "react-router-dom";
 import { LogOut, X } from "lucide-react";
@@ -31,6 +32,7 @@ function Sidebar({ isOpen, onClose }) {
       console.error("Logout error:", error);
     } finally {
       dispatch(logout());
+      onClose();
     }
   }
 
@@ -78,7 +80,7 @@ function Sidebar({ isOpen, onClose }) {
           </button>
         </header>
 
-        {/* Scrollable Navigation */}
+        {/* Main Navigation */}
         <nav
           aria-label="Main navigation"
           className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto bg-primary px-3 py-5"
@@ -123,22 +125,21 @@ function Sidebar({ isOpen, onClose }) {
               </li>
             ))}
           </ul>
+
+          {/* Logout inside the main navigation */}
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Logout"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-300 transition-colors hover:bg-white hover:text-danger focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
+
+              <span>Logout</span>
+            </button>
+          </div>
         </nav>
-
-        {/* Sidebar Footer */}
-        <footer className="shrink-0 border-t border-white/10 bg-white/5 px-3 py-4">
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            aria-label="Logout"
-            className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-danger-light hover:text-danger"
-          >
-            <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
-
-            <span>Logout</span>
-          </button>
-        </footer>
       </aside>
     </>
   );

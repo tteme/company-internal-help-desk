@@ -1,4 +1,3 @@
-
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink } from "react-router-dom";
 import { LogOut, X } from "lucide-react";
@@ -50,13 +49,13 @@ function Sidebar({ isOpen, onClose }) {
 
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-50 flex h-screen w-60 flex-col bg-primary text-white",
-          "transform transition-transform duration-200 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex h-dvh w-60 flex-col overflow-hidden bg-primary text-white",
+          "transition-transform duration-200 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full",
           "lg:translate-x-0",
         ].join(" ")}
       >
-        {/* Sidebar Header */}
+        {/* Fixed sidebar header */}
         <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-5">
           <div>
             <img
@@ -80,10 +79,10 @@ function Sidebar({ isOpen, onClose }) {
           </button>
         </header>
 
-        {/* Main Navigation */}
+        {/* Only the navigation links scroll */}
         <nav
           aria-label="Main navigation"
-          className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto bg-primary px-3 py-5"
+          className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain bg-primary px-3 py-5"
         >
           <ul className="space-y-6">
             {Object.entries(sections).map(([sectionName, sectionItems]) => (
@@ -125,21 +124,20 @@ function Sidebar({ isOpen, onClose }) {
               </li>
             ))}
           </ul>
-
-          {/* Logout inside the main navigation */}
-          <div className="mt-6 border-t border-white/10 pt-4">
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Logout"
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-300 transition-colors hover:bg-white hover:text-danger focus:outline-none focus:ring-2 focus:ring-accent"
-            >
-              <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
-
-              <span>Logout</span>
-            </button>
-          </div>
         </nav>
+
+        {/* Fixed logout footer */}
+        <footer className="shrink-0 border-t border-white/10 bg-primary px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Logout"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-red-300 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
+            <span>Logout</span>
+          </button>
+        </footer>
       </aside>
     </>
   );

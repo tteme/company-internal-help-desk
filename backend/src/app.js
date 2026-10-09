@@ -20,7 +20,18 @@ import roleRoutes from "./routes/role.routes.js";
 import systemSettingRoutes from "./routes/system-setting.routes.js";
 import systemStatusRoutes from "./routes/system-status.routes.js";
 
+
 const app = express();
+
+app.use(
+  cors({
+    origin: ["http://localhost:8080", "http://localhost:5173",],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
 app.use(cookieParser());
 
 // Security
@@ -66,6 +77,5 @@ app.get("/api/health", (req, res) => {
     message: "Digaf Help Desk API is running.",
   });
 });
-
 
 export default app;

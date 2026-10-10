@@ -20,12 +20,18 @@ import roleRoutes from "./routes/role.routes.js";
 import systemSettingRoutes from "./routes/system-setting.routes.js";
 import systemStatusRoutes from "./routes/system-status.routes.js";
 
-
 const app = express();
+
+const allowedOrigins = [
+  "http://localhost:8080",
+  "http://localhost:5173",
+  "http://196.190.251.12:8081",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 app.use(
   cors({
-    origin: ["http://localhost:8080", "http://localhost:5173",],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -36,18 +42,6 @@ app.use(cookieParser());
 
 // Security
 app.use(helmet());
-
-// CORS
-// CORS
-app.use(
-  cors({
-    origin: [
-      process.env.FRONTEND_URL || "http://localhost:5173",
-      "http://196.190.251.12:8081",
-    ],
-    credentials: true,
-  }),
-);
 
 // Parse JSON request bodies
 app.use(express.json());

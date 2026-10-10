@@ -1,5 +1,12 @@
 import { login } from "../services/auth.service.js";
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.COOKIE_SECURE === "true",
+  sameSite: "lax",
+  path: "/",
+};
+
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -7,9 +14,7 @@ export const loginUser = async (req, res) => {
     const result = await login(email, password);
 
     res.cookie("accessToken", result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...cookieOptions,
       maxAge: 1000 * 60 * 60 * 8,
     });
 
@@ -41,11 +46,7 @@ export const getCurrentUser = async (req, res) => {
 };
 
 export const logoutUser = (req, res) => {
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
+  res.clearCookie("accessToken", cookieOptions);
 
   return res.status(200).json({
     success: true,

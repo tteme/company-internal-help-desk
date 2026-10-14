@@ -50,6 +50,12 @@ async function updateUserAvailability(userId, availability) {
   });
 }
 
+
+async function getDepartmentOfficers() {
+  return apiRequest("/users/department-officers");
+}
+
+
 export {
   getUsers,
   getUserById,
@@ -58,4 +64,5 @@ export {
   deactivateUser,
   reactivateUser,
   updateUserAvailability,
+  getDepartmentOfficers,
 };

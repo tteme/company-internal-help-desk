@@ -9,8 +9,14 @@ import {
   escalateRequest,
   confirmOrRejectRequest,
   rateRequest,
+  assignRequest,
+  getEscalationTargets,
+  escalateRequestToDepartment,
 } from "../../services/request.service";
 import { apiRequest } from "../../services/api";
+import { getDepartmentOfficers } from "../../services/user.service";
+import Modal from "../../components/ui/Modal";
+import EscalateDepartmentForm from "../../components/requests/EscalateDepartmentForm";
 
 const statusLabels = {
   OPEN: "Open",
@@ -78,6 +84,17 @@ function RequestDetails() {
   const [isEscalatingRequest, setIsEscalatingRequest] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  const [departmentOfficers, setDepartmentOfficers] = useState([]);
+  const [selectedOfficerId, setSelectedOfficerId] = useState("");
+  const [loadingOfficers, setLoadingOfficers] = useState(false);
+  const [assigningRequest, setAssigningRequest] = useState(false);
+  const [showDepartmentEscalation, setShowDepartmentEscalation] =
+    useState(false);
+  const [escalationTargets, setEscalationTargets] = useState([]);
+  const [isEscalatingToDepartment, setIsEscalatingToDepartment] =
+    useState(false);
+  const [loadError, setLoadError] = useState("");
+
   const isRequestCreator = request?.creatorId === user?.id;
   const isCurrentAssignee = request?.assigneeId === user?.id;
 
@@ -102,6 +119,87 @@ function RequestDetails() {
 
   const canRateRequest = isRequestCreator && request?.status === "CLOSED";
 
+  const HIGH_WORKLOAD_THRESHOLD = 5;
+
+  const userDepartmentId = user?.departmentId ?? user?.department?.id;
+
+  const hasPendingEscalation = Boolean(
+    request?.escalations?.some((escalation) => escalation.status === "PENDING"),
+  );
+
+  const canAssignRequest =
+    user?.role === "DEPARTMENT_HEAD" &&
+    Boolean(userDepartmentId) &&
+    request?.departmentId === userDepartmentId &&
+    !hasPendingEscalation &&
+    !["PENDING_EMPLOYEE", "RESOLVED", "CLOSED", "REJECTED"].includes(
+      request?.status,
+    );
+
+  const selectedOfficer = departmentOfficers.find(
+    (officer) => officer.id === selectedOfficerId,
+  );
+
+  // Assignment history stores user IDs. Resolve them to names using the
+  // assignments already loaded with the request (this includes past
+  // assignees, so old records resolve too).
+  const userNamesById = {};
+
+  request?.assignments?.forEach((assignment) => {
+    if (assignment.assignee) {
+      userNamesById[assignment.assignedTo] =
+        `${assignment.assignee.firstName} ${assignment.assignee.lastName}`;
+    }
+  });
+
+    const canEscalateToDepartment = canAssignRequest;
+
+  function formatHistoryValue(history, value) {
+    if (history.action === "ASSIGNED") {
+      return userNamesById[value] || "Unknown user";
+    }
+
+    return value.replaceAll("_", " ");
+  }
+
+    function handleCloseDepartmentEscalation() {
+      if (isEscalatingToDepartment) {
+        return;
+      }
+
+      setShowDepartmentEscalation(false);
+      setError("");
+    }
+
+    async function handleOpenDepartmentEscalation() {
+      try {
+        setError("");
+
+        const response = await getEscalationTargets();
+
+        setEscalationTargets(response.data ?? []);
+        setShowDepartmentEscalation(true);
+      } catch (error) {
+        setError(error.message || "Failed to load departments.");
+      }
+    }
+
+    async function handleEscalateToDepartment(data) {
+      try {
+        setIsEscalatingToDepartment(true);
+        setError("");
+
+        await escalateRequestToDepartment(request.id, data);
+
+        // The request now belongs to another department and this head
+        // can no longer open it, so return to the list.
+        navigate("/requests");
+      } catch (error) {
+        setError(error.message || "Failed to escalate request.");
+      } finally {
+        setIsEscalatingToDepartment(false);
+      }
+    }
   async function handleStartRequest() {
     try {
       setIsStartingRequest(true);
@@ -171,6 +269,35 @@ function RequestDetails() {
       setIsEscalatingRequest(false);
     }
   }
+
+  const handleAssignRequest = async () => {
+    if (!selectedOfficerId) {
+      setError("Please select a Department Officer.");
+      return;
+    }
+
+    setAssigningRequest(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      await assignRequest(id, selectedOfficerId);
+
+      const [requestResponse, officersResponse] = await Promise.all([
+        apiRequest(`/requests/${id}`),
+        getDepartmentOfficers(),
+      ]);
+
+      setRequest(requestResponse.data);
+      setDepartmentOfficers(officersResponse.data ?? []);
+      setSelectedOfficerId("");
+      setSuccessMessage("Request assigned successfully.");
+    } catch (error) {
+      setError(error.message || "Failed to assign request.");
+    } finally {
+      setAssigningRequest(false);
+    }
+  };
 
   async function handleConfirmRequest() {
     try {
@@ -244,13 +371,14 @@ function RequestDetails() {
     async function loadRequest() {
       try {
         setIsLoading(true);
+        setLoadError("");
         setError("");
 
         const response = await apiRequest(`/requests/${id}`);
 
         setRequest(response.data);
       } catch (error) {
-        setError(error.message || "Failed to load request.");
+        setLoadError(error.message || "Failed to load request.");
       } finally {
         setIsLoading(false);
       }
@@ -258,7 +386,38 @@ function RequestDetails() {
 
     loadRequest();
   }, [id]);
+  useEffect(() => {
+    if (user?.role !== "DEPARTMENT_HEAD") return;
 
+    let isMounted = true;
+
+    const loadDepartmentOfficers = async () => {
+      setLoadingOfficers(true);
+
+      try {
+        const response = await getDepartmentOfficers();
+
+        if (isMounted) {
+          setDepartmentOfficers(response.data ?? []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Failed to load department officers:", error);
+          setError(error.message || "Failed to load department officers.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingOfficers(false);
+        }
+      }
+    };
+
+    loadDepartmentOfficers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.role]);
   if (isLoading) {
     return (
       <section>
@@ -267,14 +426,22 @@ function RequestDetails() {
     );
   }
 
-  if (error) {
+  if (loadError || !request) {
     return (
       <section>
+        <button
+          type="button"
+          onClick={() => navigate("/requests")}
+          className="mb-5 text-sm font-medium text-text-secondary transition-colors hover:text-text"
+        >
+          ← Back to Requests
+        </button>
+
         <p
           role="alert"
           className="rounded-lg border border-danger bg-danger-light p-6 text-sm text-danger"
         >
-          {error}
+          {loadError || "Request not found."}
         </p>
       </section>
     );
@@ -288,6 +455,14 @@ function RequestDetails() {
           className="mb-5 rounded-lg border border-success/20 bg-success-light px-4 py-3 text-sm font-medium text-success"
         >
           {successMessage}
+        </div>
+      )}
+      {error && (
+        <div
+          role="alert"
+          className="mb-5 rounded-lg border border-danger bg-danger-light px-4 py-3 text-sm text-danger"
+        >
+          {error}
         </div>
       )}
       <button
@@ -444,8 +619,136 @@ function RequestDetails() {
             </p>
           </div>
         )}
-      </div>
 
+        {canAssignRequest && (
+          <div className="mt-4 border-t border-border pt-4">
+            <h6 className="mb-3 text-base font-semibold text-text">
+              {request.assignee ? "Reassign Request" : "Assign Request"}
+            </h6>
+
+            {loadingOfficers ? (
+              <p className="text-sm text-text-secondary">
+                Loading department officers...
+              </p>
+            ) : departmentOfficers.length === 0 ? (
+              <p className="text-sm text-text-secondary">
+                No active Department Officers are available in your department.
+              </p>
+            ) : (
+              <>
+                <label
+                  htmlFor="departmentOfficer"
+                  className="mb-2 block text-sm font-medium text-text"
+                >
+                  Select Department Officer
+                </label>
+
+                <select
+                  id="departmentOfficer"
+                  className="mb-3 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  value={selectedOfficerId}
+                  onChange={(e) => setSelectedOfficerId(e.target.value)}
+                  disabled={assigningRequest}
+                >
+                  <option value="">Choose an officer</option>
+
+                  {departmentOfficers.map((officer) => (
+                    <option key={officer.id} value={officer.id}>
+                      {officer.firstName} {officer.lastName}
+                      {officer.employeeId ? ` (${officer.employeeId})` : ""}
+                      {officer.availability ? ` — ${officer.availability}` : ""}
+                      {typeof officer.activeRequests === "number"
+                        ? ` · ${officer.activeRequests} active`
+                        : ""}
+                      {officer.breachedRequests > 0
+                        ? ` · ${officer.breachedRequests} breached`
+                        : ""}
+                    </option>
+                  ))}
+                  {selectedOfficer &&
+                    selectedOfficer.activeRequests >=
+                      HIGH_WORKLOAD_THRESHOLD && (
+                      <p className="mb-3 text-xs text-warning">
+                        {selectedOfficer.firstName} already has{" "}
+                        {selectedOfficer.activeRequests} active requests.
+                      </p>
+                    )}
+                </select>
+
+                <button
+                  type="button"
+                  className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={handleAssignRequest}
+                  disabled={
+                    assigningRequest ||
+                    !selectedOfficerId ||
+                    selectedOfficerId === request.assignee?.id
+                  }
+                >
+                  {assigningRequest
+                    ? "Assigning..."
+                    : request.assignee
+                      ? "Reassign Request"
+                      : "Assign Request"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      {/* Escalate to other departments */}
+      {canEscalateToDepartment && (
+        <div className="mt-6 rounded-lg border border-border bg-surface p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-text">
+            Escalate to Another Department
+          </h2>
+
+          <p className="mt-1 text-sm text-text-secondary">
+            If this request belongs to a different department, hand it over to
+            that department's head. It will leave your department and its SLA
+            clock will restart.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleOpenDepartmentEscalation}
+            className="mt-4 rounded-md border border-danger px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger-light"
+          >
+            Escalate to Department
+          </button>
+        </div>
+      )}
+
+      {showDepartmentEscalation && (
+        <Modal
+          title="Escalate to Another Department"
+          size="lg"
+          onClose={handleCloseDepartmentEscalation}
+        >
+          {error && (
+            <div
+              role="alert"
+              className="mb-5 rounded-md border border-danger bg-danger-light px-4 py-3 text-sm text-danger"
+            >
+              {error}
+            </div>
+          )}
+
+          {escalationTargets.length === 0 ? (
+            <p className="text-sm text-text-secondary">
+              No other department currently has an active Department Head and
+              active categories to receive this request.
+            </p>
+          ) : (
+            <EscalateDepartmentForm
+              targets={escalationTargets}
+              onSubmit={handleEscalateToDepartment}
+              onCancel={handleCloseDepartmentEscalation}
+              isSubmitting={isEscalatingToDepartment}
+            />
+          )}
+        </Modal>
+      )}
       {/* SLA */}
       <div className="mt-6 rounded-lg border border-border bg-surface p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -655,25 +958,26 @@ function RequestDetails() {
                         </p>
                       )}
 
-                      {(history.oldValue || history.newValue) && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                          {history.oldValue && (
-                            <span className="rounded-md bg-surface-muted px-2 py-1 text-text-secondary">
-                              {history.oldValue.replaceAll("_", " ")}
-                            </span>
-                          )}
+                      {history.action !== "ASSIGNED" &&
+                        (history.oldValue || history.newValue) && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                            {history.oldValue && (
+                              <span className="rounded-md bg-surface-muted px-2 py-1 text-text-secondary">
+                                {formatHistoryValue(history, history.oldValue)}
+                              </span>
+                            )}
 
-                          {history.oldValue && history.newValue && (
-                            <span className="text-text-muted">→</span>
-                          )}
+                            {history.oldValue && history.newValue && (
+                              <span className="text-text-muted">→</span>
+                            )}
 
-                          {history.newValue && (
-                            <span className="rounded-md bg-accent-light px-2 py-1 text-accent">
-                              {history.newValue.replaceAll("_", " ")}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                            {history.newValue && (
+                              <span className="rounded-md bg-accent-light px-2 py-1 text-accent">
+                                {formatHistoryValue(history, history.newValue)}
+                              </span>
+                            )}
+                          </div>
+                        )}
                     </div>
                   </div>
                 );

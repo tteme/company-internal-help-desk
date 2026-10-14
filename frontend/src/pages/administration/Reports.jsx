@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -11,8 +12,14 @@ import OfficerStatsTable from "../../components/reports/OfficerStatsTable";
 
 import { getOverviewReport } from "../../services/reports.service";
 
+// Format using the LOCAL calendar date. toISOString() converts to UTC,
+// which shifts the date back one day for local midnight in UTC+3.
 function toDateInputValue(date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function getPresetRange(days) {
@@ -30,6 +37,9 @@ const PRESETS = [
 ];
 
 function Reports() {
+  const user = useSelector((state) => state.auth.user);
+  const isDepartmentHead = user?.role === "DEPARTMENT_HEAD";
+
   const [dateRange, setDateRange] = useState(() => {
     const { start, end } = getPresetRange(30);
     return [start, end];
@@ -71,11 +81,21 @@ function Reports() {
     setDateRange([start, end]);
   }
 
+  const departmentName = user?.department?.name;
+
   return (
     <section>
       <PageHeader
         title="Reports"
-        description="Overview of request volume, SLA performance, and officer activity."
+        description={
+          isDepartmentHead
+            ? `Request volume, SLA performance, and officer activity${
+                departmentName
+                  ? ` for ${departmentName}`
+                  : " for your department"
+              }.`
+            : "Overview of request volume, SLA performance, and officer activity."
+        }
       />
 
       <div className="mt-6 flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -143,12 +163,16 @@ function Reports() {
                 nameKey="priority"
               />
 
-              <RequestsBreakdownChart
-                title="Requests by Department"
-                data={report.requestsByDepartment}
-                dataKey="count"
-                nameKey="department"
-              />
+              {/* A head's report only contains their own department,
+                  so this chart would always show a single bar. */}
+              {!isDepartmentHead && (
+                <RequestsBreakdownChart
+                  title="Requests by Department"
+                  data={report.requestsByDepartment}
+                  dataKey="count"
+                  nameKey="department"
+                />
+              )}
 
               <SlaBreachesCard slaBreaches={report.slaBreaches} />
             </div>

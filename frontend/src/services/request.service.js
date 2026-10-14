@@ -82,6 +82,23 @@ async function escalateRequest(requestId, reason, description = "") {
   });
 }
 
+export async function assignRequest(requestId, targetOfficerId) {
+  return apiRequest(`/requests/${requestId}/assign`, {
+    method: "PATCH",
+    body: JSON.stringify({ targetOfficerId }),
+  });
+}
+
+async function getEscalationTargets() {
+  return apiRequest("/requests/escalation-targets");
+}
+
+async function escalateRequestToDepartment(requestId, data) {
+  return apiRequest(`/requests/${requestId}/escalate-department`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
 
 export {
   getRequests,
@@ -91,4 +108,6 @@ export {
   escalateRequest,
   confirmOrRejectRequest,
   rateRequest,
+  getEscalationTargets,
+  escalateRequestToDepartment,
 };

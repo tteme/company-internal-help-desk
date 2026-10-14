@@ -62,9 +62,24 @@ function AppRoutes() {
               <Route path="/categories" element={<Categories />} />
               <Route path="/sla" element={<SlaPolicies />} />
               <Route path="/business-hours" element={<BusinessHours />} />
-              <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<Users />} />
               <Route path="/feedback-titles" element={<FeedbackTitles />} />
+            </Route>
+
+            {/* Reports: company-wide for admins, department-only for heads.
+                The backend decides the scope from the logged-in user. */}
+            <Route
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={[
+                    "ADMIN",
+                    "SYSTEM_ADMINISTRATOR",
+                    "DEPARTMENT_HEAD",
+                  ]}
+                />
+              }
+            >
+              <Route path="/reports" element={<Reports />} />
             </Route>
 
             <Route

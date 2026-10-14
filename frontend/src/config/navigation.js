@@ -90,6 +90,12 @@ export const navigation = {
       section: "Management",
     },
     {
+      label: "Reports",
+      path: "/reports",
+      icon: BarChart3,
+      section: "Reporting",
+    },
+    {
       label: "Profile",
       path: "/profile",
       icon: UserCircle,

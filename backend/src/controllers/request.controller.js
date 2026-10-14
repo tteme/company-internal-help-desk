@@ -10,6 +10,9 @@ import {
   escalateRequest,
   getMyRequests,
   rateRequest,
+  assignRequest,
+  getEscalationTargets,
+  escalateRequestToDepartment,
 } from "../services/request.service.js";
 
 export const createRequestController = async (req, res) => {
@@ -424,6 +427,98 @@ export const rateRequestController = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to rate request.",
+    });
+  }
+};
+
+
+
+export const assignRequestController = async (req, res) => {
+  try {
+    const result = await assignRequest({
+      requestId: req.params.id,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      actorDepartmentId: req.user.departmentId,
+      targetOfficerId: req.body.targetOfficerId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Request assigned successfully.",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.message === "Request not found." ? 404 : 400;
+
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to assign request.",
+    });
+  }
+};
+
+export const getEscalationTargetsController = async (req, res) => {
+  try {
+    const targets = await getEscalationTargets(req.user.departmentId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Escalation targets retrieved successfully.",
+      data: targets,
+    });
+  } catch (error) {
+    console.error("Get escalation targets error:", error);
+
+    const isKnown =
+      error.message === "Your account is not linked to a department.";
+
+    return res.status(isKnown ? 400 : 500).json({
+      success: false,
+      message: isKnown
+        ? error.message
+        : "Failed to retrieve escalation targets.",
+    });
+  }
+};
+
+export const escalateRequestToDepartmentController = async (req, res) => {
+  try {
+    const result = await escalateRequestToDepartment({
+      requestId: req.params.id,
+      actorId: req.user.id,
+      targetDepartmentId: req.body.targetDepartmentId,
+      targetCategoryId: req.body.targetCategoryId,
+      description: req.body.description,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Request escalated to the other department successfully.",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Escalate request to department error:", error);
+
+    // Database and other unexpected errors must not reach the browser.
+    if (error.name?.startsWith("Prisma") || error.code) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to escalate the request. Please try again.",
+      });
+    }
+
+    let statusCode = 400;
+
+    if (error.message === "Request not found.") {
+      statusCode = 404;
+    } else if (error.message.startsWith("Only")) {
+      statusCode = 403;
+    }
+
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message,
     });
   }
 };

@@ -1,6 +1,15 @@
 import prisma from "../config/database.js";
 import { createNotification } from "./notification.service.js";
 
+
+// Requests in these statuses are no longer waiting on the support team,
+// so their SLA clock must not trigger warnings or escalations.
+const SLA_INACTIVE_STATUSES = [
+  "RESOLVED",
+  "CLOSED",
+  "REJECTED",
+  "PENDING_EMPLOYEE",
+];
 /**
  * Process an SLA warning.
  *
@@ -39,7 +48,7 @@ const processSlaWarning = async (sla) => {
     // 2. Do not send warning for terminal requests
     // ---------------------------------------------------------
 
-    if (["RESOLVED", "CLOSED", "REJECTED"].includes(request.status)) {
+    if (SLA_INACTIVE_STATUSES.includes(request.status)) {
       return {
         processed: false,
         reason: "REQUEST_TERMINAL",
@@ -171,12 +180,12 @@ const processSlaBreach = async (sla) => {
     // 2. Ignore terminal requests
     // ---------------------------------------------------------
 
-    if (["RESOLVED", "CLOSED", "REJECTED"].includes(request.status)) {
-      return {
-        processed: false,
-        reason: "REQUEST_TERMINAL",
-      };
-    }
+        if (SLA_INACTIVE_STATUSES.includes(request.status)) {
+          return {
+            processed: false,
+            reason: "REQUEST_TERMINAL",
+          };
+        }
 
     // ---------------------------------------------------------
     // 3. Find Department Head
@@ -482,7 +491,7 @@ export const processSlaWarnings = async () => {
 
       request: {
         status: {
-          notIn: ["RESOLVED", "CLOSED", "REJECTED"],
+          notIn: SLA_INACTIVE_STATUSES,
         },
       },
     },
@@ -524,7 +533,7 @@ export const processSlaBreaches = async () => {
 
       request: {
         status: {
-          notIn: ["RESOLVED", "CLOSED", "REJECTED"],
+          notIn: SLA_INACTIVE_STATUSES,
         },
       },
     },

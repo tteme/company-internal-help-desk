@@ -807,6 +807,10 @@ const permissions = [
     name: "feedback.title.delete",
     description: "Deactivate client feedback titles.",
   },
+  {
+    name: "request.escalate_department",
+    description: "Escalate a request to another department.",
+  },
 ];
 
 // ============================================================
@@ -843,6 +847,8 @@ const rolePermissions = {
   DEPARTMENT_HEAD: [
     "request.view",
     "request.update",
+    "request.assign",
+    "request.reassign",
     "request.comment",
     "request.resolve",
     "request.escalate",
@@ -857,6 +863,7 @@ const rolePermissions = {
 
     "notification.view",
     "notification.update",
+    "request.escalate_department",
   ],
 
   ADMIN: [

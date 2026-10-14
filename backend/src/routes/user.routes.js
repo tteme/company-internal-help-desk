@@ -9,6 +9,7 @@ import {
   deactivateUserController,
   reactivateUserController,
   updateUserAvailabilityController,
+  getDepartmentOfficersController,
 } from "../controllers/user.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -80,6 +81,14 @@ router.patch(
   validate,
   reactivateUserController,
 );
+
+
+router.get(
+  "/department-officers",
+  authenticate,
+  getDepartmentOfficersController,
+);
+
 router.get(
   "/:id",
   authenticate,

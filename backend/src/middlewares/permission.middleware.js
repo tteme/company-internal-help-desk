@@ -111,3 +111,78 @@ export const requireRequestConfirmationPermission = async (req, res, next) => {
     });
   }
 };
+
+
+
+export const requireAssignmentPermission = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    if (req.user.role !== "DEPARTMENT_HEAD") {
+      return res.status(403).json({
+        success: false,
+        message: "Only Department Heads can assign requests.",
+      });
+    }
+
+    const request = await prisma.request.findUnique({
+      where: { id: req.params.id },
+      select: {
+        assigneeId: true,
+        departmentId: true,
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found.",
+      });
+    }
+
+    if (request.departmentId !== req.user.departmentId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only assign requests in your department.",
+      });
+    }
+
+    const requiredPermission = request.assigneeId
+      ? "request.reassign"
+      : "request.assign";
+
+    const role = await prisma.role.findUnique({
+      where: { name: req.user.role },
+      include: {
+        rolePermissions: {
+          include: { permission: true },
+        },
+      },
+    });
+
+    const hasPermission = role?.rolePermissions.some(
+      (rolePermission) => rolePermission.permission.name === requiredPermission,
+    );
+
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to perform this action.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Assignment permission check error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify assignment permission.",
+    });
+  }
+};

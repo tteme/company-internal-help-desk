@@ -68,6 +68,7 @@ enum EscalationReason {
   OFFICER_ESCALATION
   COMPLEXITY
   MANAGEMENT_REQUEST
+  CROSS_DEPARTMENT
 }
 
 enum EscalationStatus {
@@ -217,7 +218,6 @@ model Department {
   code        String  @unique
   description String?
   isActive    Boolean @default(true)
-
   users           User[]
   categories      Category[]
   routingRules    RoutingRule[]
@@ -225,6 +225,9 @@ model Department {
   escalationRules EscalationRule[]
   requests        Request[]
   clientFeedbacks ClientFeedback[]
+
+  escalationsFrom RequestEscalation[] @relation("EscalationFromDepartment")
+  escalationsTo   RequestEscalation[] @relation("EscalationToDepartment")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -263,8 +266,8 @@ model User {
   lastLoginAt DateTime?
 
   branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
-
   department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
 
   userRoles UserRoleAssignment[]
 
@@ -542,7 +545,6 @@ model Request {
   closedAt    DateTime?
 
   creator User @relation("RequestCreator", fields: [creatorId], references: [id], onDelete: Restrict)
-
   assignee User? @relation("RequestAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
@@ -550,13 +552,9 @@ model Request {
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   assignments RequestAssignment[]
-
   comments RequestComment[]
-
   attachments RequestAttachment[]
-
   sla RequestSla?
-
   escalations RequestEscalation[]
 
   histories RequestHistory[]
@@ -573,6 +571,8 @@ model Request {
   @@index([status])
   @@index([priority])
   @@index([submittedAt])
+
+
 }
 
 // ============================================================
@@ -701,6 +701,9 @@ model RequestEscalation {
   escalatedFromId String?
   escalatedToId   String?
 
+  fromDepartmentId String?
+  toDepartmentId   String?
+
   reason EscalationReason
   status EscalationStatus @default(PENDING)
 
@@ -715,10 +718,16 @@ model RequestEscalation {
 
   toUser User? @relation("EscalatedTo", fields: [escalatedToId], references: [id], onDelete: SetNull)
 
+  fromDepartment Department? @relation("EscalationFromDepartment", fields: [fromDepartmentId], references: [id], onDelete: SetNull)
+  toDepartment   Department? @relation("EscalationToDepartment", fields: [toDepartmentId], references: [id], onDelete: SetNull)
+
   @@index([requestId])
   @@index([escalatedFromId])
   @@index([escalatedToId])
   @@index([status])
+
+  @@index([fromDepartmentId])
+  @@index([toDepartmentId])
 }
 
 // ============================================================

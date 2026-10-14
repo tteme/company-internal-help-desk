@@ -19,7 +19,19 @@ function resolveDateRange(startDate, endDate) {
   return { start, end };
 }
 
-export const getOverviewReport = async (startDate, endDate) => {
+/**
+ * Overview report.
+ *
+ * departmentId is optional:
+ * - null  → company-wide (Admin / System Administrator)
+ * - value → only requests currently owned by that department
+ *           (used for Department Heads)
+ */
+export const getOverviewReport = async (
+  startDate,
+  endDate,
+  departmentId = null,
+) => {
   const { start, end } = resolveDateRange(startDate, endDate);
 
   const dateFilter = {
@@ -27,6 +39,7 @@ export const getOverviewReport = async (startDate, endDate) => {
       gte: start,
       lte: end,
     },
+    ...(departmentId ? { departmentId } : {}),
   };
 
   // ==========================================================
@@ -47,6 +60,7 @@ export const getOverviewReport = async (startDate, endDate) => {
               "IN_PROGRESS",
               "PENDING_EMPLOYEE",
               "PENDING_INFORMATION",
+              "REOPENED",
             ],
           },
         },

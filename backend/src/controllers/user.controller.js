@@ -8,6 +8,7 @@ import {
   deactivateUser,
   reactivateUser,
   updateUserAvailability,
+  getDepartmentOfficers,
 } from "../services/user.service.js";
 // ============================================================
 // DEVELOPMENT TESTING
@@ -119,6 +120,39 @@ export const getUsersController = async (req, res) => {
     });
   }
 };
+
+// GET DEPARTMENT OFFICERS
+export const getDepartmentOfficersController = async (req, res) => {
+  try {
+    if (req.user.role !== "DEPARTMENT_HEAD") {
+      return res.status(403).json({
+        success: false,
+        message: "Only Department Heads can view department officers.",
+      });
+    }
+
+    const officers = await getDepartmentOfficers(req.user.departmentId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Department officers retrieved successfully.",
+      data: officers,
+    });
+  } catch (error) {
+    console.error("Get department officers error:", error);
+
+    const statusCode =
+      error.message === "Your account is not linked to a department."
+        ? 400
+        : 500;
+
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to retrieve department officers.",
+    });
+  }
+};
+
 // ============================================================
 // GET USER BY ID
 // ============================================================

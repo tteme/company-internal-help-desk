@@ -12,6 +12,9 @@ import {
   getMyRequestsController,
   rateRequestController,
   getRequestsController,
+  assignRequestController,
+  escalateRequestToDepartmentController,
+  getEscalationTargetsController,
 } from "../controllers/request.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -19,6 +22,7 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 import {
   requirePermission,
   requireRequestConfirmationPermission,
+  requireAssignmentPermission,
 } from "../middlewares/permission.middleware.js";
 
 import {
@@ -31,17 +35,15 @@ import {
   requestIdValidator,
   requestRatingValidator,
   getRequestsQueryValidator,
+  assignRequestValidator,
+  escalateToDepartmentValidator,
 } from "../validators/request.validator.js";
 
 import { validate } from "../middlewares/validation.middleware.js";
 
 const router = express.Router();
 
-/*
-|--------------------------------------------------------------------------
-| REQUEST CREATION
-|--------------------------------------------------------------------------
-*/
+
 
 // Create a new help desk request.
 // Employee creates the request; the backend determines the category,
@@ -55,11 +57,6 @@ router.post(
   createRequestController,
 );
 
-/*
-|--------------------------------------------------------------------------
-| REQUEST LISTING AND VIEWING
-|--------------------------------------------------------------------------
-*/
 
 // Get all requests available to the authenticated user according
 // to the controller's access rules.
@@ -90,11 +87,13 @@ router.get(
   getMyRequestsController,
 );
 
-/*
-|--------------------------------------------------------------------------
-| REQUEST DETAILS
-|--------------------------------------------------------------------------
-*/
+router.get(
+  "/escalation-targets",
+  authenticate,
+  requirePermission("request.escalate_department"),
+  getEscalationTargetsController,
+);
+
 
 // Get a single request by ID.
 // Used when an actor opens/views the request details.
@@ -130,6 +129,17 @@ router.patch(
   requestIdValidator,
   validate,
   startRequestController,
+);
+
+ // Manually assign or reassign a request to a Department Officer.
+router.patch(
+  "/:id/assign",
+  authenticate,
+  requestIdValidator,
+  assignRequestValidator,
+  validate,
+  requireAssignmentPermission,
+  assignRequestController,
 );
 
 // Add a comment to a request.
@@ -204,6 +214,15 @@ router.post(
   escalateRequestController,
 );
 
+router.post(
+  "/:id/escalate-department",
+  authenticate,
+  requirePermission("request.escalate_department"),
+  escalateToDepartmentValidator,
+  requestIdValidator,
+  validate,
+  escalateRequestToDepartmentController,
+);
 /*
 |--------------------------------------------------------------------------
 | REQUEST RATING

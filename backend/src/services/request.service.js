@@ -810,7 +810,20 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
   if (!request) {
     throw new Error("Request not found.");
   }
+  // ---------------------------------------------------------
+  // Map user IDs to names for the activity history messages.
+  // Assignments include every past assignee, so old history
+  // rows resolve too.
+  // ---------------------------------------------------------
 
+  const userNamesById = {};
+
+  request.assignments.forEach((assignment) => {
+    if (assignment.assignee) {
+      userNamesById[assignment.assignedTo] =
+        `${assignment.assignee.firstName} ${assignment.assignee.lastName}`;
+    }
+  });
   // ---------------------------------------------------------
   // 1. Determine user's access scope
   // ---------------------------------------------------------
@@ -956,16 +969,15 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
       // PENDING → ACCEPTED
       // ---------------------------------------------------
 
-      const updatedEscalation =
-        await transaction.requestEscalation.update({
-          where: {
-            id: pendingEscalation.id,
-          },
+      const updatedEscalation = await transaction.requestEscalation.update({
+        where: {
+          id: pendingEscalation.id,
+        },
 
-          data: {
-            status: "ACCEPTED",
-          },
-        });
+        data: {
+          status: "ACCEPTED",
+        },
+      });
 
       // ---------------------------------------------------
       // Record Head's first view
@@ -1015,8 +1027,7 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
 
     pendingEscalation.status = result.updatedEscalation.status;
 
-    currentAssignment.firstViewedAt =
-      result.updatedAssignment.firstViewedAt;
+    currentAssignment.firstViewedAt = result.updatedAssignment.firstViewedAt;
 
     // -------------------------------------------------------
     // Re-fetch histories
@@ -1055,10 +1066,11 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
 
     request.histories = request.histories.map((history) => ({
       ...history,
-      message: getRequestHistoryMessage(history, {
-        id: userId,
-        role: userRole,
-      }),
+      message: getRequestHistoryMessage(
+        history,
+        { id: userId, role: userRole },
+        userNamesById,
+      ),
     }));
 
     return request;
@@ -1107,10 +1119,11 @@ export const getRequestById = async ({ requestId, userId, userRole }) => {
 
   request.histories = request.histories.map((history) => ({
     ...history,
-    message: getRequestHistoryMessage(history, {
-      id: userId,
-      role: userRole,
-    }),
+    message: getRequestHistoryMessage(
+      history,
+      { id: userId, role: userRole },
+      userNamesById,
+    ),
   }));
 
   // ---------------------------------------------------------
@@ -1983,4 +1996,465 @@ export const rateRequest = async (requestId, employeeId, rating, comment) => {
 
   // 7. Return the created rating
   return requestRating;
+};
+
+// ASSIGN REQUESTS
+export const assignRequest = async ({
+  requestId,
+  actorId,
+  actorRole,
+  actorDepartmentId,
+  targetOfficerId,
+}) => {
+  if (actorRole !== "DEPARTMENT_HEAD") {
+    throw new Error("Only Department Heads can manually assign requests.");
+  }
+
+  if (!actorDepartmentId) {
+    throw new Error("Your account is not linked to a department.");
+  }
+
+  const [request, targetOfficer] = await Promise.all([
+    prisma.request.findUnique({
+      where: { id: requestId },
+      include: {
+        assignee: {
+          select: { id: true, role: true },
+        },
+        department: {
+          select: { id: true },
+        },
+        escalations: {
+          where: { status: "PENDING" },
+          select: { id: true },
+        },
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: targetOfficerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeId: true,
+        email: true,
+        role: true,
+        departmentId: true,
+        isActive: true,
+      },
+    }),
+  ]);
+
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  if (request.departmentId !== actorDepartmentId) {
+    throw new Error("You can only assign requests in your department.");
+  }
+
+  if (request.escalations.length > 0) {
+    throw new Error("Resolve the pending escalation before reassigning.");
+  }
+
+  if (
+    ["PENDING_EMPLOYEE", "RESOLVED", "CLOSED", "REJECTED"].includes(
+      request.status,
+    )
+  ) {
+    throw new Error("This request cannot be reassigned in its current status.");
+  }
+
+  if (
+    !targetOfficer ||
+    targetOfficer.role !== "DEPARTMENT_OFFICER" ||
+    targetOfficer.departmentId !== actorDepartmentId ||
+    !targetOfficer.isActive
+  ) {
+    throw new Error(
+      "The target must be an active Department Officer in your department.",
+    );
+  }
+
+  if (request.assigneeId === targetOfficerId) {
+    throw new Error("This officer is already assigned to the request.");
+  }
+
+  const assignedAt = new Date();
+  const assignmentType = request.assigneeId ? "REASSIGNMENT" : "MANUAL";
+
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.requestAssignment.updateMany({
+      where: {
+        requestId,
+        unassignedAt: null,
+      },
+      data: {
+        unassignedAt: assignedAt,
+      },
+    });
+
+    const assignment = await tx.requestAssignment.create({
+      data: {
+        requestId,
+        assignedTo: targetOfficerId,
+        assignedById: actorId,
+        assignmentType,
+        assignedAt,
+      },
+    });
+
+    const updatedRequest = await tx.request.update({
+      where: { id: requestId },
+      data: {
+        assigneeId: targetOfficerId,
+        assignedAt,
+      },
+    });
+
+    await tx.requestHistory.create({
+      data: {
+        requestId,
+        actorId,
+        action: "ASSIGNED",
+        oldValue: request.assigneeId,
+        newValue: targetOfficerId,
+        description:
+          `Request ${assignmentType === "REASSIGNMENT" ? "reassigned" : "assigned"} ` +
+          `to ${targetOfficer.firstName} ${targetOfficer.lastName}.`,
+      },
+    });
+
+    await createNotification({
+      userId: targetOfficerId,
+      requestId,
+      type: "REQUEST_ASSIGNED",
+      channel: "IN_APP",
+      title:
+        assignmentType === "REASSIGNMENT"
+          ? "Request Reassigned"
+          : "New Request Assigned",
+      message:
+        assignmentType === "REASSIGNMENT"
+          ? `Request ${request.ticketNumber} has been reassigned to you.`
+          : `Request ${request.ticketNumber} has been assigned to you.`,
+      db: tx,
+    });
+
+    return { request: updatedRequest, assignment };
+  });
+
+  return {
+    ...result,
+    assignee: {
+      id: targetOfficer.id,
+      employeeId: targetOfficer.employeeId,
+      firstName: targetOfficer.firstName,
+      lastName: targetOfficer.lastName,
+      email: targetOfficer.email,
+    },
+  };
+};
+
+
+// ============================================================
+// CROSS-DEPARTMENT ESCALATION
+// ============================================================
+
+/**
+ * Departments (with their categories) a Department Head can
+ * escalate to. Heads don't have department.view or category.view,
+ * so the form gets its options from here instead.
+ */
+export const getEscalationTargets = async (actorDepartmentId) => {
+  if (!actorDepartmentId) {
+    throw new Error("Your account is not linked to a department.");
+  }
+
+  return prisma.department.findMany({
+    where: {
+      isActive: true,
+      id: { not: actorDepartmentId },
+      categories: { some: { isActive: true } },
+      users: {
+        some: {
+          role: "DEPARTMENT_HEAD",
+          status: "ACTIVE",
+          isActive: true,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      categories: {
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+};
+
+/**
+ * A Department Head moves a request to another department.
+ *
+ * - Request moves to the target department and category
+ * - Assigned to the target department's Department Head
+ * - SLA restarts now, using the target department's policy
+ * - Original department loses access to the request
+ *
+ * The target Head accepts it automatically on first view
+ * (existing getRequestById behavior).
+ */
+export const escalateRequestToDepartment = async ({
+  requestId,
+  actorId,
+  targetDepartmentId,
+  targetCategoryId,
+  description,
+}) => {
+  // 1. Load the request
+  const request = await prisma.request.findUnique({
+    where: { id: requestId },
+    include: {
+      department: { select: { id: true, name: true } },
+      escalations: { where: { status: "PENDING" }, select: { id: true } },
+    },
+  });
+
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  // 2. The actor must be an active Head of the request's current department
+  const actor = await prisma.user.findFirst({
+    where: {
+      id: actorId,
+      role: "DEPARTMENT_HEAD",
+      status: "ACTIVE",
+      isActive: true,
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      departmentId: true,
+    },
+  });
+
+  if (!actor || actor.departmentId !== request.departmentId) {
+    throw new Error(
+      "Only an active Department Head of this request's department can escalate it to another department.",
+    );
+  }
+
+  // 3. Validate the request state
+  if (
+    ["PENDING_EMPLOYEE", "RESOLVED", "CLOSED", "REJECTED"].includes(
+      request.status,
+    )
+  ) {
+    throw new Error(
+      `A request with status ${request.status} cannot be escalated.`,
+    );
+  }
+
+  if (request.escalations.length > 0) {
+    throw new Error(
+      "Resolve the pending escalation before escalating to another department.",
+    );
+  }
+
+  if (targetDepartmentId === request.departmentId) {
+    throw new Error("Choose a department other than the current one.");
+  }
+
+  // 4. Validate the target
+  const [targetDepartment, targetCategory, targetHead, slaPolicy] =
+    await Promise.all([
+      prisma.department.findUnique({ where: { id: targetDepartmentId } }),
+      prisma.category.findUnique({ where: { id: targetCategoryId } }),
+      prisma.user.findFirst({
+        where: {
+          role: "DEPARTMENT_HEAD",
+          status: "ACTIVE",
+          isActive: true,
+          departmentId: targetDepartmentId,
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, firstName: true, lastName: true },
+      }),
+      prisma.slaPolicy.findUnique({
+        where: {
+          departmentId_priority: {
+            departmentId: targetDepartmentId,
+            priority: request.priority,
+          },
+        },
+      }),
+    ]);
+
+  if (!targetDepartment || !targetDepartment.isActive) {
+    throw new Error("The target department is not available.");
+  }
+
+  if (
+    !targetCategory ||
+    !targetCategory.isActive ||
+    targetCategory.departmentId !== targetDepartmentId
+  ) {
+    throw new Error(
+      "The selected category does not belong to the target department.",
+    );
+  }
+
+  if (!targetHead) {
+    throw new Error(
+      `No active Department Head is available in ${targetDepartment.name}.`,
+    );
+  }
+
+  if (!slaPolicy || !slaPolicy.isActive) {
+    throw new Error(
+      `No active ${request.priority} SLA policy is configured for ${targetDepartment.name}.`,
+    );
+  }
+
+  // 5. Restart the SLA clock under the target policy
+  const now = new Date();
+
+  const { warningAt, resolutionDueAt } = await calculateResolutionSla({
+    startedAt: now,
+    resolutionTimeMinutes: slaPolicy.resolutionTimeMinutes,
+    warningPercentage: slaPolicy.warningPercentage,
+  });
+
+  // 6. Everything happens in one transaction
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.requestAssignment.updateMany({
+      where: { requestId: request.id, unassignedAt: null },
+      data: { unassignedAt: now },
+    });
+
+    const assignment = await tx.requestAssignment.create({
+      data: {
+        requestId: request.id,
+        assignedTo: targetHead.id,
+        assignedById: actor.id,
+        assignmentType: "ESCALATION",
+        assignedAt: now,
+      },
+    });
+
+    const escalation = await tx.requestEscalation.create({
+      data: {
+        requestId: request.id,
+        escalatedFromId: actor.id,
+        escalatedToId: targetHead.id,
+        fromDepartmentId: request.departmentId,
+        toDepartmentId: targetDepartmentId,
+        reason: "CROSS_DEPARTMENT",
+        status: "PENDING",
+        description,
+        escalatedAt: now,
+      },
+    });
+
+    const updatedRequest = await tx.request.update({
+      where: { id: request.id },
+      data: {
+        departmentId: targetDepartmentId,
+        categoryId: targetCategoryId,
+        assigneeId: targetHead.id,
+        assignedAt: now,
+        status: "ESCALATED",
+      },
+    });
+
+    // Restart the SLA. Breach flags are cleared because this is
+    // a new clock owned by the receiving department.
+    await tx.requestSla.upsert({
+      where: { requestId: request.id },
+      update: {
+        slaPolicyId: slaPolicy.id,
+        startedAt: now,
+        responseDueAt: null,
+        resolutionDueAt,
+        warningAt,
+        warningSentAt: null,
+        responseBreached: false,
+        resolutionBreached: false,
+        responseBreachedAt: null,
+        resolutionBreachedAt: null,
+      },
+      create: {
+        requestId: request.id,
+        slaPolicyId: slaPolicy.id,
+        startedAt: now,
+        resolutionDueAt,
+        warningAt,
+      },
+    });
+
+    await tx.requestHistory.create({
+      data: {
+        requestId: request.id,
+        actorId: actor.id,
+        action: "ASSIGNED",
+        oldValue: request.assigneeId,
+        newValue: targetHead.id,
+        description: `Request assigned to Department Head ${targetHead.firstName} ${targetHead.lastName} of ${targetDepartment.name} as part of a cross-department escalation.`,
+      },
+    });
+
+    await tx.requestHistory.create({
+      data: {
+        requestId: request.id,
+        actorId: actor.id,
+        action: "ESCALATED",
+        oldValue: request.status,
+        newValue: "ESCALATED",
+        description: `Request escalated from ${request.department.name} to ${targetDepartment.name} (category: ${targetCategory.name}). Reason: ${description}`,
+      },
+    });
+
+    await createNotification({
+      userId: targetHead.id,
+      requestId: request.id,
+      type: "REQUEST_ESCALATED",
+      channel: "IN_APP",
+      title: "Request Escalated to Your Department",
+      message: `Request ${request.ticketNumber} was escalated to you from ${request.department.name} by ${actor.firstName} ${actor.lastName}. Reason: ${description}`,
+      db: tx,
+    });
+
+    // Tell the previous assignee, unless that was the escalating Head.
+    if (request.assigneeId && request.assigneeId !== actor.id) {
+      await createNotification({
+        userId: request.assigneeId,
+        requestId: request.id,
+        type: "REQUEST_REASSIGNED",
+        channel: "IN_APP",
+        title: "Request Transferred",
+        message: `Request ${request.ticketNumber} was escalated to ${targetDepartment.name} and is no longer assigned to you.`,
+        db: tx,
+      });
+    }
+
+    return { updatedRequest, escalation, assignment };
+  });
+
+  return {
+    request: result.updatedRequest,
+    escalation: result.escalation,
+    assignment: result.assignment,
+    targetDepartment: {
+      id: targetDepartment.id,
+      name: targetDepartment.name,
+    },
+    targetHead,
+  };
 };

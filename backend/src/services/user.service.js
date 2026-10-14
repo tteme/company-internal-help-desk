@@ -383,6 +383,52 @@ export const getUsers = async () => {
 
   return users;
 };
+// GET DEPARTMENT OFFICERS (with current workload)
+export const getDepartmentOfficers = async (departmentId) => {
+  if (!departmentId) {
+    throw new Error("Your account is not linked to a department.");
+  }
+
+  const officers = await prisma.user.findMany({
+    where: {
+      role: "DEPARTMENT_OFFICER",
+      departmentId,
+      status: "ACTIVE",
+      isActive: true,
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      availability: true,
+      assignedRequests: {
+        where: {
+          status: { notIn: ["RESOLVED", "CLOSED", "REJECTED"] },
+        },
+        select: {
+          sla: { select: { resolutionBreached: true } },
+        },
+      },
+    },
+  });
+
+  return officers
+    .map(({ assignedRequests, ...officer }) => ({
+      ...officer,
+      activeRequests: assignedRequests.length,
+      breachedRequests: assignedRequests.filter(
+        (request) => request.sla?.resolutionBreached,
+      ).length,
+    }))
+    .sort(
+      (a, b) =>
+        a.activeRequests - b.activeRequests ||
+        a.firstName.localeCompare(b.firstName),
+    );
+};
+
 // ============================================================
 // GET USER BY ID
 // ============================================================

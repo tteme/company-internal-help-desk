@@ -6,7 +6,13 @@ function getUserFullName(user) {
   return `${user.firstName} ${user.lastName}`.trim();
 }
 
-function getRequestHistoryMessage(history, viewer) {
+/**
+ * Build the human-readable sentence for an activity history row.
+ *
+ * userNames maps user IDs to full names. It is used for ASSIGNED rows,
+ * which store user IDs in oldValue/newValue.
+ */
+function getRequestHistoryMessage(history, viewer, userNames = {}) {
   const actorName = getUserFullName(history.actor);
   const isActor = history.actorId === viewer.id;
 
@@ -101,19 +107,43 @@ function getRequestHistoryMessage(history, viewer) {
   // ---------------------------------------------------------
 
   if (history.action === "ASSIGNED") {
+    // Automatic assignment: the stored description already
+    // names the officer ("Request automatically assigned to ...").
     if (!history.actorId) {
-      return "The request was automatically assigned.";
+      return history.description || "The request was automatically assigned.";
     }
+
+    const assigneeName = history.newValue ? userNames[history.newValue] : null;
+
+    // Names unavailable: fall back to the generic wording.
+    if (!assigneeName) {
+      if (isActor) {
+        return "You updated the request assignment.";
+      }
+
+      if (viewer.role === "EMPLOYEE") {
+        return `${actorName} updated the assignment for your request.`;
+      }
+
+      return `${actorName} updated the request assignment.`;
+    }
+
+    // Assigned for the first time, or moved from someone else.
+    const verb = history.oldValue ? "reassigned" : "assigned";
 
     if (isActor) {
-      return "You updated the request assignment.";
+      const target = history.newValue === viewer.id ? "yourself" : assigneeName;
+
+      return `You ${verb} this request to ${target}.`;
     }
+
+    const target = history.newValue === viewer.id ? "you" : assigneeName;
 
     if (viewer.role === "EMPLOYEE") {
-      return `${actorName} updated the assignment for your request.`;
+      return `${actorName} ${verb} your request to ${target}.`;
     }
 
-    return `${actorName} updated the request assignment.`;
+    return `${actorName} ${verb} the request to ${target}.`;
   }
 
   // ---------------------------------------------------------

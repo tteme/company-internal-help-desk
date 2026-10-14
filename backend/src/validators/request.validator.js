@@ -83,6 +83,13 @@ export const escalateRequestValidator = [
 export const requestIdValidator = [
   param("id").isUUID().withMessage("Request ID must be a valid UUID."),
 ];
+
+export const assignRequestValidator = [
+  body("targetOfficerId")
+    .isUUID()
+    .withMessage("Target officer ID must be a valid UUID."),
+];
+
 export const requestRatingValidator = [
   body("rating")
     .notEmpty()
@@ -135,4 +142,30 @@ export const getRequestsQueryValidator = [
     .optional()
     .isIn(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
     .withMessage("Invalid request priority."),
+];
+
+export const escalateToDepartmentValidator = [
+  body("targetDepartmentId")
+    .trim()
+    .notEmpty()
+    .withMessage("Target department is required.")
+    .bail()
+    .isUUID()
+    .withMessage("Target department ID must be a valid UUID."),
+
+  body("targetCategoryId")
+    .trim()
+    .notEmpty()
+    .withMessage("Target category is required.")
+    .bail()
+    .isUUID()
+    .withMessage("Target category ID must be a valid UUID."),
+
+  body("description")
+    .trim()
+    .notEmpty()
+    .withMessage("Please explain why this request is being escalated.")
+    .bail()
+    .isLength({ min: 10, max: 1000 })
+    .withMessage("Reason must be between 10 and 1000 characters."),
 ];

@@ -17,12 +17,13 @@ import {
 
 export const createRequestController = async (req, res) => {
   try {
-    const { title, description } = req.body;
+   const { title, description, categoryId } = req.body;
 
     const request = await createRequest({
       creatorId: req.user.id,
       title,
       description,
+      categoryId,
     });
 
     return res.status(201).json({

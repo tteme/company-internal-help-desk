@@ -171,13 +171,30 @@ const findAvailableOfficer = async (departmentId) => {
  * Create and automatically assign a request.
  *
  */
-export const createRequest = async ({ creatorId, title, description }) => {
-  const classification = await findCategoryFromDescription({
-    title,
-    description,
+
+export const createRequest = async ({
+  creatorId,
+  title,
+  description,
+  categoryId,
+}) => {
+  const category = await prisma.category.findFirst({
+    where: {
+      id: categoryId,
+      isActive: true,
+      department: {
+        isActive: true,
+      },
+    },
+    include: {
+      department: true,
+    },
   });
 
-  const { category } = classification;
+  if (!category) {
+    throw new Error("The selected category does not exist or is inactive.");
+  }
+
   const { department } = category;
 
   // Automatic priority detection is intentionally deferred.
@@ -256,7 +273,7 @@ export const createRequest = async ({ creatorId, title, description }) => {
           create: {
             actorId: creatorId,
             action: "CREATED",
-            description: `Request created by employee. Category automatically determined as "${category.name}" and routed to "${department.name}".`,
+            description: `Request created by employee with selected category "${category.name}" and routed to "${department.name}".`,
           },
         },
       },

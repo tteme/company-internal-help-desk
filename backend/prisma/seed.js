@@ -826,6 +826,7 @@ const rolePermissions = {
     "request.reject_resolution",
     "request.reopen",
     "request.rate",
+    "category.view",
   ],
 
   DEPARTMENT_OFFICER: [

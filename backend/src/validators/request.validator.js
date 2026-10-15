@@ -8,6 +8,13 @@ export const createRequestValidator = [
     .isLength({ max: 200 })
     .withMessage("Request title must not exceed 200 characters."),
 
+  body("categoryId")
+    .notEmpty()
+    .withMessage("Request category is required.")
+    .bail()
+    .isUUID()
+    .withMessage("Request category ID must be a valid UUID."),
+
   body("description")
     .trim()
     .notEmpty()

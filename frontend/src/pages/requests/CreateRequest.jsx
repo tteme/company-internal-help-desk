@@ -1,11 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import PageHeader from "../../components/ui/PageHeader";
 import { createRequest } from "../../services/request.service";
+import { getCategories } from "../../services/category.service";
 
 function CreateRequest() {
   const navigate = useNavigate();
+
+  const [categories, setCategories] = useState([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState("");
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await getCategories();
+
+        const activeCategories = (response.data || []).filter(
+          (category) =>
+            category.isActive && category.department?.isActive !== false,
+        );
+
+        setCategories(activeCategories);
+      } catch (error) {
+        setCategoryError(error.message || "Failed to load categories.");
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  const selectedCategory = categories.find(
+    (category) => category.id === categoryId,
+  );
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -19,6 +50,11 @@ function CreateRequest() {
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
 
+    if (!categoryId) {
+      setError("Please select a category.");
+      return;
+    }
+
     if (!trimmedTitle || !trimmedDescription) {
       setError("Title and description are required.");
       return;
@@ -28,7 +64,11 @@ function CreateRequest() {
       setIsSubmitting(true);
       setError("");
 
-      const response = await createRequest(trimmedTitle, trimmedDescription);
+      const response = await createRequest(
+        trimmedTitle,
+        trimmedDescription,
+        categoryId,
+      );
 
       navigate(`/requests/${response.data.id}`);
     } catch (error) {
@@ -62,7 +102,57 @@ function CreateRequest() {
               {error}
             </div>
           )}
+          <div>
+            <label
+              htmlFor="request-category"
+              className="block text-sm font-medium text-text"
+            >
+              Category
+            </label>
 
+            <select
+              id="request-category"
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
+              disabled={
+                isSubmitting || isLoadingCategories || categories.length === 0
+              }
+              required
+              className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="">
+                {isLoadingCategories
+                  ? "Loading categories..."
+                  : "Select a category"}
+              </option>
+
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+
+            {categoryError && (
+              <p role="alert" className="mt-1.5 text-sm text-danger">
+                {categoryError}
+              </p>
+            )}
+
+            {!isLoadingCategories &&
+              !categoryError &&
+              categories.length === 0 && (
+                <p className="mt-1.5 text-sm text-danger">
+                  No active categories are available.
+                </p>
+              )}
+
+            {selectedCategory && (
+              <p className="mt-1.5 text-sm text-text-muted">
+                Responsible department: {selectedCategory.department.name}
+              </p>
+            )}
+          </div>
           <div>
             <label
               htmlFor="request-title"

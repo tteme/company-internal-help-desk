@@ -26,15 +26,18 @@ async function getRequests({
 
   return apiRequest(`/requests?${params.toString()}`);
 }
-async function createRequest(title, description) {
+
+async function createRequest(title, description, categoryId) {
   return apiRequest("/requests", {
     method: "POST",
     body: JSON.stringify({
       title,
       description,
+      categoryId,
     }),
   });
 }
+
 async function startRequest(requestId) {
   return apiRequest(`/requests/${requestId}/status`, {
     method: "PATCH",

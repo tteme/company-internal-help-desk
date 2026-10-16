@@ -101,3 +101,49 @@ Access Beyond Limits
 
   return info;
 };
+
+
+export const sendPasswordResetEmail = async ({ to, firstName, resetToken }) => {
+  const resetUrl =
+    `${process.env.FRONTEND_URL}/reset-password?token=` +
+    encodeURIComponent(resetToken);
+
+  const info = await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to,
+    subject: "DIGAF Help Desk - Reset Your Password",
+    text: `Hello ${firstName},
+
+We received a request to reset your DIGAF Help Desk password.
+
+Use the following link to reset your password:
+${resetUrl}
+
+This link expires in 15 minutes and can only be used once.
+
+If you did not request a password reset, you can ignore this email.
+
+DIGAF Help Desk Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #1f4e79;">DIGAF Help Desk</h2>
+        <p>Hello ${firstName},</p>
+        <p>We received a request to reset your DIGAF Help Desk password.</p>
+        <p>Click the button below to choose a new password. This link expires in 15 minutes and can only be used once.</p>
+        <p style="margin: 28px 0;">
+          <a href="${resetUrl}"
+             style="background-color: #1f4e79; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Reset Password
+          </a>
+        </p>
+        <p>If the button doesn't work, copy this link into your browser:</p>
+        <p style="word-break: break-all;">${resetUrl}</p>
+        <p>If you did not request a password reset, you can ignore this email.</p>
+        <p>DIGAF Help Desk Team</p>
+      </div>
+    `,
+  });
+
+  console.log("Password reset email sent:", info.messageId);
+  return info;
+};

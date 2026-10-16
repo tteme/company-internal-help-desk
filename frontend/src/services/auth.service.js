@@ -20,4 +20,19 @@ async function logout() {
   });
 }
 
-export { login, getCurrentUser, logout };
+
+async function requestPasswordReset(email) {
+  return apiRequest("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+async function resetPassword(token, password, confirmPassword) {
+  return apiRequest("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password, confirmPassword }),
+  });
+}
+
+export { login, getCurrentUser, logout, requestPasswordReset, resetPassword };

@@ -25,6 +25,8 @@ import Escalations from "../pages/administration/Escalations";
 import Settings from "../pages/settings/Settings";
 import Maintenance from "../pages/maintenance/Maintenance";
 import FeedbackTitles from "../pages/administration/FeedbackTitles";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 function AppRoutes() {
   return (
@@ -35,6 +37,8 @@ function AppRoutes() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/activate" element={<ActivateAccount />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
         <Route path="/client-feedback" element={<ClientFeedback />} />

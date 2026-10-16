@@ -1,5 +1,6 @@
 import prisma from "../config/database.js";
 import { createNotification } from "./notification.service.js";
+import { classifyClientFeedback } from "./feedback-classification.service.js";
 
 // ============================================================
 // CREATE CLIENT FEEDBACK
@@ -279,10 +280,17 @@ export const getClientFeedbackById = async ({ feedbackId, userId, role }) => {
   if (!feedback) {
     throw new Error("Client feedback not found.");
   }
+  // Generate an internal recommendation for administrators only.
+  const recommendation =
+    role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR"
+      ? await classifyClientFeedback(feedback.description)
+      : undefined;
 
-  // Admins can view all feedback
   if (role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR") {
-    return feedback;
+    return {
+      ...feedback,
+      recommendation,
+    };
   }
 
   // Department officers and heads can only view

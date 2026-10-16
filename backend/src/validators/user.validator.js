@@ -1,13 +1,6 @@
 import { body, param } from "express-validator";
 
 export const createUserValidator = [
-  body("employeeId")
-    .trim()
-    .notEmpty()
-    .withMessage("Employee ID is required.")
-    .isLength({ max: 50 })
-    .withMessage("Employee ID must not exceed 50 characters."),
-
   body("firstName")
     .trim()
     .notEmpty()

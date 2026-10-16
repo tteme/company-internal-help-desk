@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye } from "lucide-react";
 
 import PageHeader from "../../components/ui/PageHeader";
 import { getClientFeedbacks } from "../../services/client-feedback.service";
@@ -17,6 +18,18 @@ function ClientFeedbackList() {
   // PAGINATION
   // ============================================================
   const navigate = useNavigate();
+
+  function handleRowClick(feedbackId) {
+    navigate(`/feedback/${feedbackId}`);
+  }
+
+  function handleRowKeyDown(event, feedbackId) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleRowClick(feedbackId);
+    }
+  }
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -272,7 +285,13 @@ function ClientFeedbackList() {
                     paginatedFeedbacks.map((feedback) => (
                       <tr
                         key={feedback.id}
-                        className="transition-colors hover:bg-surface-muted/50"
+                        onClick={() => handleRowClick(feedback.id)}
+                        onKeyDown={(event) =>
+                          handleRowKeyDown(event, feedback.id)
+                        }
+                        tabIndex={0}
+                        aria-label={`Open feedback ${feedback.referenceNumber}`}
+                        className="cursor-pointer transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent"
                       >
                         <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-text">
                           {feedback.referenceNumber}
@@ -313,10 +332,15 @@ function ClientFeedbackList() {
                         <td className="whitespace-nowrap px-4 py-4 text-right">
                           <button
                             type="button"
-                            onClick={() => navigate(`/feedback/${feedback.id}`)}
-                            className="text-sm font-medium text-accent hover:underline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleRowClick(feedback.id);
+                            }}
+                            aria-label={`View feedback ${feedback.referenceNumber}`}
+                            title="View feedback"
+                            className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                           >
-                            View
+                            <Eye className="h-4 w-4" />
                           </button>
                         </td>
                       </tr>

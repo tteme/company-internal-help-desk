@@ -405,6 +405,100 @@ function ClientFeedbackDetails() {
           </div>
         </section>
 
+        {/* Category Recommendation — administrators only */}
+        {isAdministrator && (
+          <section className="rounded-lg border border-border bg-surface">
+            <div className="border-b border-border px-5 py-4">
+              <h2 className="text-base font-semibold text-text">
+                Suggested Category & Department
+              </h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                This is an automated recommendation. Review it before assigning
+                the feedback.
+              </p>
+            </div>
+
+            <div className="px-5 py-5">
+              {!feedback.recommendation ? (
+                <p className="text-sm text-text-secondary">
+                  No matching active category keywords were found. Please select
+                  the appropriate department manually.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                        Suggested Category
+                      </p>
+                      <p className="mt-1 font-medium text-text">
+                        {feedback.recommendation.categoryName}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                        Suggested Destination
+                      </p>
+                      <p className="mt-1 font-medium text-text">
+                        {feedback.recommendation.department.name}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {feedback.recommendation.department.code}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                      Matched Keywords
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {feedback.recommendation.matchedKeywords.map((match) => (
+                        <span
+                          key={match.keyword}
+                          className="rounded-md border border-border bg-surface-muted px-2.5 py-1 text-xs text-text"
+                        >
+                          {match.keyword} · Weight {match.weight}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-text-muted">
+                      Total matching weight: {feedback.recommendation.score}
+                    </p>
+                  </div>
+
+                  {feedback.recommendation.alternatives.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                        Other Possible Matches
+                      </p>
+                      <ul className="mt-2 space-y-2">
+                        {feedback.recommendation.alternatives.map(
+                          (alternative) => (
+                            <li
+                              key={alternative.categoryId}
+                              className="rounded-md border border-border p-3"
+                            >
+                              <p className="text-sm font-medium text-text">
+                                {alternative.categoryName}
+                              </p>
+                              <p className="text-xs text-text-secondary">
+                                {alternative.department.name} · Matching weight:{" "}
+                                {alternative.score}
+                              </p>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Status */}
         <section className="rounded-lg border border-border bg-surface">
           <div className="border-b border-border px-5 py-4">

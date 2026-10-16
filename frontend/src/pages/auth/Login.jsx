@@ -183,7 +183,14 @@ function Login() {
                 </button>
               </div>
             </div>
-
+            <div className="-mt-2 flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium text-primary transition hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             {/* Error message */}
             {error && (
               <div

@@ -18,6 +18,13 @@ export const authenticate = async (req, res, next) => {
       where: {
         id: decoded.userId,
       },
+      // Credential and token columns are never loaded onto req.user,
+      // so no controller can leak them by accident.
+      omit: {
+        passwordHash: true,
+        activationToken: true,
+        activationExpires: true,
+      },
       include: {
         branch: true,
         department: true,

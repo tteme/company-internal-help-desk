@@ -263,6 +263,10 @@ model User {
   activationToken   String?   @unique
   activationExpires DateTime?
 
+  passwordResetTokenHash String?   @unique
+  passwordResetExpires   DateTime?
+  passwordResetAt        DateTime?
+
   lastLoginAt DateTime?
 
   branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
@@ -962,6 +966,14 @@ model ClientFeedback {
 // MODEL CLIENT FEEDBACK SEQUENCE
 // ============================================================
 model ClientFeedbackSequence {
+  id    Int @id
+  value Int @default(0)
+}
+
+// ============================================================
+// MODEL EMPLOYEE ID SEQUENCE
+// ============================================================
+model EmployeeIdSequence {
   id    Int @id
   value Int @default(0)
 }

@@ -63,7 +63,6 @@ export const generateDevelopmentActivationToken = async (userId) => {
 // CREATE USERS
 // ============================================================
 export const createUser = async ({
-  employeeId,
   firstName,
   lastName,
   email,
@@ -103,20 +102,6 @@ export const createUser = async ({
     }
   } else {
     throw new Error("You are not authorized to create user accounts.");
-  }
-
-  // ============================================================
-  // 2. CHECK WHETHER EMPLOYEE ID ALREADY EXISTS
-  // ============================================================
-
-  const existingEmployee = await prisma.user.findUnique({
-    where: {
-      employeeId,
-    },
-  });
-
-  if (existingEmployee) {
-    throw new Error("Employee ID already exists.");
   }
 
   // Check whether email already exists
@@ -222,6 +207,15 @@ export const createUser = async ({
 
   // Create the user and role assignment together
   const user = await prisma.$transaction(async (tx) => {
+    const sequence = await tx.employeeIdSequence.update({
+      where: { id: 1 },
+      data: {
+        value: { increment: 1 },
+      },
+    });
+
+    const employeeId = `DIG-EMP-${String(sequence.value).padStart(4, "0")}`;
+
     const createdUser = await tx.user.create({
       data: {
         employeeId,

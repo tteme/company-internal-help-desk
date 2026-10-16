@@ -96,10 +96,6 @@ function UserForm({
   function validate() {
     const nextErrors = {};
 
-    if (!formData.employeeId.trim()) {
-      nextErrors.employeeId = "Employee ID is required.";
-    }
-
     if (!formData.firstName.trim()) {
       nextErrors.firstName = "First name is required.";
     }
@@ -129,39 +125,38 @@ function UserForm({
     return Object.keys(nextErrors).length === 0;
   }
 
-    async function handleSubmit(event) {
-      event.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
 
-      if (!validate()) {
-        return;
-      }
-
-      const data = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        role: formData.role,
-      };
-
-      // employeeId and email are immutable after creation
-      if (!isEditMode) {
-        data.employeeId = formData.employeeId.trim();
-        data.email = formData.email.trim();
-      }
-
-      if (formData.phone.trim()) {
-        data.phone = formData.phone.trim();
-      }
-
-      if (requiresBranch) {
-        data.branchId = formData.branchId;
-      }
-
-      if (requiresDepartment) {
-        data.departmentId = formData.departmentId;
-      }
-
-      await onSubmit(data);
+    if (!validate()) {
+      return;
     }
+
+    const data = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      role: formData.role,
+    };
+
+    // employeeId and email are immutable after creation
+    if (!isEditMode) {
+      data.email = formData.email.trim();
+    }
+
+    if (formData.phone.trim()) {
+      data.phone = formData.phone.trim();
+    }
+
+    if (requiresBranch) {
+      data.branchId = formData.branchId;
+    }
+
+    if (requiresDepartment) {
+      data.departmentId = formData.departmentId;
+    }
+
+    await onSubmit(data);
+  }
   function getFieldClass(fieldName) {
     return [
       "w-full rounded-md border bg-background px-3 py-2 text-sm text-text",
@@ -176,41 +171,26 @@ function UserForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        {/* Employee ID */}
-        <div>
-          <label
-            htmlFor="employeeId"
-            className="mb-1.5 block text-sm font-medium text-text"
-          >
-            Employee ID
-          </label>
+        {isEditMode && (
+          <div>
+            <label
+              htmlFor="employeeId"
+              className="mb-1.5 block text-sm font-medium text-text"
+            >
+              Employee ID
+            </label>
 
-          <input
-            id="employeeId"
-            name="employeeId"
-            type="text"
-            value={formData.employeeId}
-            onChange={handleChange}
-            className={getFieldClass("employeeId")}
-            placeholder="e.g. EMP-001"
-            disabled={submitting || isEditMode}
-          />
-
-          {isEditMode && (
-            <p className="mt-1 text-xs text-text-muted">
-              Employee ID cannot be changed.
-            </p>
-          )}
-
-          {errors.employeeId && (
-            <p className="mt-1 text-xs text-red-600">{errors.employeeId}</p>
-          )}
-
-          {errors.employeeId && (
-            <p className="mt-1 text-xs text-red-600">{errors.employeeId}</p>
-          )}
-        </div>
-
+            <input
+              id="employeeId"
+              name="employeeId"
+              type="text"
+              value={formData.employeeId}
+              className={getFieldClass("employeeId")}
+              disabled
+              readOnly
+            />
+          </div>
+        )}
         {/* Role */}
         <div>
           <label

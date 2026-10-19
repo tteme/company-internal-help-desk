@@ -1,3 +1,4 @@
+
 name: Digaf Help Desk CI
 
 on:
@@ -14,7 +15,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   backend:
@@ -80,3 +81,125 @@ jobs:
         run: npm run build
         env:
           VITE_API_BASE_URL: http://localhost:5001/api
+
+  deploy:
+    name: Deploy to production
+    needs:
+      - backend
+      - frontend
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    timeout-minutes: 30
+
+    steps:
+      - name: Deploy over verified SSH
+        shell: bash
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_KNOWN_HOSTS: ${{ secrets.PROD_KNOWN_HOSTS }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$PROD_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/known_hosts ~/.ssh/id_ed25519
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$PROD_USER@$PROD_HOST" \
+            "GITHUB_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+
+          cd /home/app_user/helpdesk/company-internal-help-desk
+
+          # Fetch the latest main branch.
+          git fetch origin main
+
+          # Deploy only the exact commit that passed CI.
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo "Deployment stopped: GitHub main has changed since this run."
+            exit 1
+          fi
+
+          # Preserve production configuration and reject non-fast-forward updates.
+          git merge --ff-only origin/main
+
+          # Build images using the existing production configuration.
+          docker compose --env-file .env.docker build backend frontend
+
+          # Back up the production database before running migrations.
+          BACKUP_DIR="/home/app_user/helpdesk/deploy-backups"
+          BACKUP_FILE="$BACKUP_DIR/digaf-helpdesk-db-$(date +%Y%m%d-%H%M%S).sql"
+
+          mkdir -p "$BACKUP_DIR"
+          BACKUP_TMP="$(mktemp "$BACKUP_DIR/.digaf-helpdesk-db-XXXXXX.tmp")"
+          trap 'rm -f "$BACKUP_TMP"' EXIT
+
+          docker compose --env-file .env.docker exec -T db \
+            sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+            > "$BACKUP_TMP"
+
+          test -s "$BACKUP_TMP"
+          grep -Fq 'PostgreSQL database dump complete' "$BACKUP_TMP"
+          chmod 600 "$BACKUP_TMP"
+          mv "$BACKUP_TMP" "$BACKUP_FILE"
+          echo "Database backup created and verified."
+
+          # Apply production database migrations.
+          docker compose --env-file .env.docker run --rm backend \
+            npx prisma migrate deploy
+
+          # Recreate application services without restarting the database.
+          docker compose --env-file .env.docker up -d --no-deps backend frontend
+
+          # Wait for the frontend to respond successfully.
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent http://127.0.0.1:8081/ -o /dev/null; then
+              echo "Frontend health check passed."
+              break
+            fi
+
+            if [ "$attempt" -eq 12 ]; then
+              echo "Deployment failed: frontend did not respond successfully."
+              docker compose --env-file .env.docker logs --tail=50 frontend
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          # Check that the backend responds without a server error.
+          API_STATUS=""
+          for attempt in $(seq 1 12); do
+            API_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              http://127.0.0.1:5002/api || true)"
+
+            case "$API_STATUS" in
+              2??|3??|4??)
+                echo "Backend API is reachable (HTTP $API_STATUS)."
+                break
+                ;;
+            esac
+
+            if [ "$attempt" -eq 12 ]; then
+              echo "Deployment failed: backend API did not respond correctly."
+              docker compose --env-file .env.docker logs --tail=50 backend
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          # Display final service status.
+          docker compose --env-file .env.docker ps
+          REMOTE

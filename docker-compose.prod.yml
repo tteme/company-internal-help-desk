@@ -1,0 +1,16 @@
+services:
+  db:
+    ports: !override []
+
+  backend:
+    environment:
+      NODE_ENV: production
+    ports: !override
+      - "5002:5000"
+
+  frontend:
+    build:
+      args:
+        VITE_API_BASE_URL: http://196.190.251.12:5002/api
+    ports: !override
+      - "8081:80"
